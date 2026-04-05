@@ -1,24 +1,21 @@
 import { AppContainer } from "@/components/ui";
-import { getToken } from "@/lib/secureStore";
-import { useEffect, useState } from "react";
+import { authClient } from "@/lib/auth-client";
 import { Text } from "react-native";
 
 export default function ProfileScreen() {
-  useEffect(() => {
-    const loadToken = async () => {
-      const t = await getToken();
-      console.log("TOKEN:", t);
-      setToken(t); // store in state
-    };
+  const { data: session, isPending } = authClient.useSession();
 
-    loadToken();
-  }, []);
-
-  const [token, setToken] = useState<string | null>(null);
+  if (isPending) {
+    return (
+      <AppContainer>
+        <Text>Loading...</Text>
+      </AppContainer>
+    );
+  }
 
   return (
     <AppContainer>
-      <Text>{token ? `Profile: ${token}` : "No token found"}</Text>
+      <Text>{session ? `Profile: ${session.user.name}` : "No token found"}</Text>
     </AppContainer>
   );
 }

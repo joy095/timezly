@@ -4,7 +4,6 @@ import {
   AppInput,
   AppOTPInput,
 } from "@/components/ui";
-import { useForgetPassword, useResetPasswordOtp } from "@/hooks/useAuth";
 import {
   forgetPasswordSchema,
   resetPasswordOtpSchema,
@@ -12,16 +11,29 @@ import {
 import { getRemainingSeconds, otpTimerState } from "@/store/otpTimerStore";
 import useAppColors from "@/theme/useAppColors";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import { Card, TextInput } from "react-native-paper";
 import { useComputed } from "@legendapp/state/react";
+import { authClient } from "@/lib/auth-client";
 
 const RESEND_COOLDOWN_MS = 60_000;
 
 export default function ResetPasswordScreen() {
   const colors = useAppColors();
-  const styles = getStyles(colors);
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
+  const [isPending, setIsPending] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const params = useLocalSearchParams();
   const email = Array.isArray(params.email)
@@ -36,9 +48,6 @@ export default function ResetPasswordScreen() {
     otp?: string;
     general?: string;
   }>({});
-
-  const resetPasswordMutation = useResetPasswordOtp();
-  const forgetPasswordMutation = useForgetPassword();
 
   const displaySeconds = useComputed(() => getRemainingSeconds(email));
 
@@ -57,38 +66,41 @@ export default function ResetPasswordScreen() {
     (field: keyof typeof form) => (text: string) => {
       setForm((prev) => ({ ...prev, [field]: text }));
       if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+      if (errors.general)
+        setErrors((prev) => ({ ...prev, general: undefined }));
     },
     [errors],
   );
 
   const handleResendOtp = async () => {
-    setErrors({});
-    const result = forgetPasswordSchema.safeParse(form);
+    if (!form.email) return;
 
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((err) => {
-        fieldErrors[err.path[0] as string] = err.message;
-      });
-      setErrors(fieldErrors);
+    setErrors({});
+    setIsResending(true);
+
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email: form.email,
+      type: "forget-password",
+    });
+
+    setIsResending(false);
+
+    if (error) {
+      setErrors({ general: error.message ?? "Failed to resend code" });
       return;
     }
 
-    try {
-      await forgetPasswordMutation.mutateAsync(form);
-      // ✅ Write directly to Legend State observable
-      otpTimerState.timers[email].set({
-        expiresAt: Date.now() + RESEND_COOLDOWN_MS,
-      });
-    } catch (err: any) {
-      setErrors({ general: err?.message ?? "Failed to resend OTP." });
-    }
+    // Start cooldown timer
+    otpTimerState.timers[email].set({
+      expiresAt: Date.now() + RESEND_COOLDOWN_MS,
+    });
   };
 
   const handleResetPassword = async () => {
     setErrors({});
-    const result = resetPasswordOtpSchema.safeParse(form);
 
+    // Validate form
+    const result = resetPasswordOtpSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.issues.forEach((err) => {
@@ -98,141 +110,335 @@ export default function ResetPasswordScreen() {
       return;
     }
 
-    try {
-      await resetPasswordMutation.mutateAsync(form);
-      // ✅ Clear the timer on success
-      otpTimerState.timers[email].set({ expiresAt: null });
-      router.push("/success");
-    } catch (err: any) {
-      setErrors({ general: err?.message ?? "Failed to reset password." });
+    setIsPending(true);
+
+    // Use better-auth's email OTP reset password
+    const { error } = await authClient.emailOtp.resetPassword({
+      email: form.email,
+      otp: form.otp,
+      password: form.password,
+    });
+
+    setIsPending(false);
+
+    if (error) {
+      setErrors({ general: error.message ?? "Failed to reset password" });
+      return;
     }
+
+    // Clear timer and navigate to success
+    otpTimerState.timers[email].set({ expiresAt: null });
+
+    // Option 1: Navigate to login with success message
+    router.replace({
+      pathname: "/login",
+      params: {
+        email: form.email,
+        message:
+          "Password reset successful! Please sign in with your new password.",
+      },
+    });
+
+    // Option 2: Or auto-sign in after reset (if better-auth supports it)
+    // const { error: signInError } = await authClient.signIn.email({
+    //   email: form.email,
+    //   password: form.password,
+    // });
+    // if (!signInError) {
+    //   router.replace("/(app)/home");
+    // }
   };
 
   const seconds = displaySeconds.get();
-
   const isCoolingDown = seconds !== null && seconds > 0;
+  const canResend = !isCoolingDown && !isResending && !isPending;
 
-  const canResend = !isCoolingDown && !forgetPasswordMutation.isPending;
-
-  const resendLabel = forgetPasswordMutation.isPending
-    ? "Sending…"
+  const resendLabel = isResending
+    ? "Sending..."
     : isCoolingDown
       ? `Resend in ${formatTime(seconds!)}`
-      : "Resend OTP";
+      : "Resend Code";
+
+  const isFormValid = form.password.length >= 8 && form.otp.length === 6;
 
   return (
-    <AppContainer contentStyle={styles.containerCenter}>
-      <Card>
-        <Card.Content>
-          <Text style={styles.title}>Check your email</Text>
-          <View style={{ alignItems: "center", marginTop: 6 }}>
-            <Text style={styles.subtitle}>
-              We sent a 6-digit OTP to{" "}
-              <Text style={styles.emailHighlight}>{email}</Text>
-            </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.editLink}>Wrong email? Edit</Text>
-            </TouchableOpacity>
-          </View>
+    <AppContainer contentStyle={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Card style={styles.card}>
+            <Card.Content style={styles.cardContent}>
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.iconContainer}>
+                  <TextInput.Icon
+                    icon="lock-reset"
+                    size={32}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.title}>Create New Password</Text>
+                <View style={styles.emailContainer}>
+                  <Text style={styles.subtitle}>
+                    Enter the 6-digit code sent to{" "}
+                    <Text style={styles.emailHighlight}>{email}</Text>
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={styles.editButton}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.editLink}>Use different email</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-          <View style={styles.form}>
-            <AppInput
-              label="New Password"
-              value={form.password}
-              secureTextEntry={!showPassword}
-              onChangeText={updateField("password")}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? "eye" : "eye-off"}
-                  onPress={() => setShowPassword((prev) => !prev)}
-                  size={18}
+              {/* Form */}
+              <View style={styles.form}>
+                {/* General Error */}
+                {errors.general && (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>{errors.general}</Text>
+                  </View>
+                )}
+
+                {/* Password Input */}
+                <View style={styles.inputGroup}>
+                  <AppInput
+                    label="New Password"
+                    value={form.password}
+                    secureTextEntry={!showPassword}
+                    onChangeText={updateField("password")}
+                    autoComplete="new-password"
+                    textContentType="newPassword"
+                    passwordRules="minlength: 8; required: lower; required: upper; required: digit;"
+                    error={errors.password}
+                    left={<TextInput.Icon icon="lock-outline" size={20} />}
+                    right={
+                      <TextInput.Icon
+                        icon={showPassword ? "eye-off" : "eye"}
+                        onPress={() => setShowPassword((prev) => !prev)}
+                        size={20}
+                      />
+                    }
+                  />
+                  {errors.password ? (
+                    <Text style={styles.fieldError}>{errors.password}</Text>
+                  ) : (
+                    <Text style={styles.hint}>
+                      Must be at least 8 characters
+                    </Text>
+                  )}
+                </View>
+
+                {/* OTP Input */}
+                <View style={styles.otpSection}>
+                  <Text style={styles.otpLabel}>Verification Code</Text>
+                  <View style={styles.otpWrapper}>
+                    <AppOTPInput
+                      length={6}
+                      value={form.otp}
+                      onChange={updateField("otp")}
+                      disabled={isPending}
+                    />
+                  </View>
+                  {errors.otp && (
+                    <Text style={styles.fieldError}>{errors.otp}</Text>
+                  )}
+                </View>
+
+                {/* Resend Section */}
+                <View style={styles.resendContainer}>
+                  <Text style={styles.resendHint}>Didn&#39;t receive it?</Text>
+                  <TouchableOpacity
+                    onPress={handleResendOtp}
+                    disabled={!canResend}
+                    activeOpacity={0.7}
+                    style={styles.resendButton}
+                  >
+                    {isResending ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.resendText,
+                          !canResend && styles.resendTextDisabled,
+                        ]}
+                      >
+                        {resendLabel}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Reset Button */}
+                <AppButton
+                  title="Reset Password"
+                  onPress={handleResetPassword}
+                  loading={isPending}
+                  disabled={isPending || !isFormValid}
+                  style={styles.resetButton}
+                  contentStyle={styles.resetButtonContent}
                 />
-              }
-              error={errors.password}
-            />
-            {errors.password && (
-              <Text style={styles.error}>{errors.password}</Text>
-            )}
-
-            <AppOTPInput
-              length={6}
-              value={form.otp}
-              onChange={updateField("otp")}
-            />
-            {errors.otp && <Text style={styles.error}>{errors.otp}</Text>}
-            {errors.general && (
-              <Text style={styles.error}>{errors.general}</Text>
-            )}
-
-            <View style={styles.resendContainer}>
-              <Text style={styles.resendLabel}>
-                Haven&#39;t got the email yet?
-              </Text>
-              <TouchableOpacity onPress={handleResendOtp} disabled={!canResend}>
-                <Text style={[styles.link, !canResend && styles.linkDisabled]}>
-                  {resendLabel}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <AppButton
-              title="Reset Password"
-              onPress={handleResetPassword}
-              loading={resetPasswordMutation.isPending}
-              disabled={resetPasswordMutation.isPending}
-            />
-          </View>
-        </Card.Content>
-      </Card>
+              </View>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </AppContainer>
   );
 }
 
 const getStyles = (colors: ReturnType<typeof useAppColors>) =>
   StyleSheet.create({
-    containerCenter: { justifyContent: "center" },
+    container: {
+      flex: 1,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 24,
+    },
+    card: {
+      borderRadius: 20,
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    cardContent: {
+      padding: 28,
+    },
+    header: {
+      alignItems: "center",
+      marginBottom: 28,
+    },
+    iconContainer: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primary + "15",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 16,
+    },
     title: {
       fontSize: 28,
-      fontWeight: "bold",
-      marginBottom: 8,
+      fontWeight: "800",
       color: colors.text,
+      marginBottom: 12,
+      letterSpacing: -0.5,
+      textAlign: "center",
+    },
+    emailContainer: {
+      alignItems: "center",
     },
     subtitle: {
-      fontSize: 14,
-      color: colors.text,
-      marginBottom: 4,
-      fontWeight: "500",
+      fontSize: 15,
+      color: colors.textSecondary || colors.text,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+    emailHighlight: {
+      fontWeight: "700",
+      color: colors.primary,
+    },
+    editButton: {
+      marginTop: 8,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
     },
     editLink: {
       color: colors.primary,
-      marginTop: 4,
-      textDecorationLine: "underline",
-      fontWeight: "500",
-    },
-    emailHighlight: {
       fontWeight: "600",
-      color: colors.primary,
+      fontSize: 14,
     },
     form: {
-      marginTop: 16,
-      gap: 4,
+      gap: 20,
+    },
+    inputGroup: {
+      gap: 6,
+    },
+    fieldError: {
+      color: colors.error,
+      fontSize: 12,
+      marginLeft: 4,
+      fontWeight: "500",
+    },
+    hint: {
+      color: colors.textSecondary || "#999",
+      fontSize: 12,
+      marginLeft: 4,
+    },
+    errorBanner: {
+      backgroundColor: colors.error + "15",
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.error,
+      marginBottom: 4,
+    },
+    errorBannerText: {
+      color: colors.error,
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    otpSection: {
+      gap: 10,
+    },
+    otpLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.text,
+      marginLeft: 4,
+    },
+    otpWrapper: {
+      alignItems: "center",
     },
     resendContainer: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      flexWrap: "wrap",
       gap: 6,
-      marginTop: 16,
+      marginTop: -4,
     },
-    resendLabel: { color: colors.text, fontSize: 14 },
-    link: {
-      color: colors.primary,
-      textDecorationLine: "underline",
-      fontWeight: "600",
+    resendHint: {
       fontSize: 14,
+      color: colors.textSecondary || colors.text,
     },
-    linkDisabled: { opacity: 0.45 },
-    progressFill: { height: "100%", borderRadius: 4 },
-    error: { color: colors.error, fontSize: 12, marginBottom: 6 },
+    resendButton: {
+      paddingVertical: 4,
+      paddingHorizontal: 4,
+      minWidth: 80,
+      alignItems: "center",
+    },
+    resendText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: colors.primary,
+    },
+    resendTextDisabled: {
+      color: colors.textSecondary || "#999",
+      fontWeight: "600",
+    },
+    resetButton: {
+      borderRadius: 12,
+      marginTop: 4,
+    },
+    resetButtonContent: {
+      height: 52,
+    },
   });

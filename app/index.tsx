@@ -41,6 +41,16 @@ export default function Index() {
       <AppButton title="Toggle Theme" onPress={toggleTheme} />
       <AppButton title="Login" onPress={() => router.navigate("/login")} />
 
+      <AppButton
+        title="Home tab"
+        onPress={() => router.navigate("/(tabs)")}
+      />
+
+      <AppButton
+        title="About tab"
+        onPress={() => router.navigate("/(tabs)/about")}
+      />
+
       {/* API RESULT */}
       <Text style={{ color: colors.text, marginTop: 20 }}>
         API Response: {response}
