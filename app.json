@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "test",
-    "slug": "test",
+    "name": "timezly",
+    "slug": "timezly",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "test",
+    "scheme": "timezly",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
@@ -18,10 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "INTERNET"
-      ],
-      "package": "com.joy456.test"
+      "permissions": ["INTERNET"],
+      "package": "com.joy456.timezly"
     },
     "web": {
       "output": "static",

@@ -1,16 +1,15 @@
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
-import { BACKEND_URL } from "@/const";
+import { AUTH_URL } from "@/const";
 import {
-  adminClient,
   organizationClient,
   emailOTPClient,
   jwtClient,
 } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  baseURL: BACKEND_URL, // Base URL of Better Auth backend.
+  baseURL: AUTH_URL, // Base URL of Better Auth backend.
   plugins: [
     expoClient({
       scheme: "myapp",
@@ -18,7 +17,6 @@ export const authClient = createAuthClient({
       storage: SecureStore,
     }),
 
-    adminClient(),
     organizationClient(),
     jwtClient(),
     emailOTPClient(),

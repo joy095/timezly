@@ -11,9 +11,17 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { Card, TextInput } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Card,
+  Divider,
+  TextInput,
+} from "react-native-paper";
 import { loginSchema } from "@/schemas/auth.schema";
 import { authClient } from "@/lib/auth-client";
+import { Image } from "expo-image";
+import * as GoogleIcon from "@/assets/images/google.svg";
+import { getCallbackURL } from "@/utils";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,6 +30,8 @@ export default function LoginScreen() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
+
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const [form, setForm] = useState<{
     email: string;
@@ -80,7 +90,32 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace("/(app)/home");
+    router.replace("/(tabs)");
+  };
+
+  const handleLoginWithGoogle = async () => {
+    setIsGoogleLoading(true);
+    setErrors({});
+
+    try {
+      const { error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: getCallbackURL(), // Redirect after successful auth
+      });
+
+      if (error) {
+        setErrors({
+          general: error.message ?? "Google sign in failed. Please try again.",
+        });
+      }
+      // Note: better-auth handles the redirect automatically on success
+    } catch (err) {
+      setErrors({
+        general: "An unexpected error occurred. Please try again.",
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const navigateToSignUp = () => {
@@ -116,6 +151,38 @@ export default function LoginScreen() {
                 <Text style={styles.subtitle}>
                   Sign in to continue to your account
                 </Text>
+              </View>
+
+              {/* Google Sign Up Button */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleLoginWithGoogle}
+                disabled={isGoogleLoading || isPending}
+                activeOpacity={0.8}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator size="small" color="#333" />
+                ) : (
+                  <>
+                    <View style={styles.googleIconContainer}>
+                      <Image
+                        style={styles.image}
+                        source={GoogleIcon}
+                        contentFit="contain"
+                      />
+                    </View>
+                    <Text style={styles.googleButtonText}>
+                      Continue with Google
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={styles.dividerContainer}>
+                <Divider style={styles.divider} />
+                <Text style={styles.dividerText}>or sign up with email</Text>
+                <Divider style={styles.divider} />
               </View>
 
               {/* Form */}
@@ -220,8 +287,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 24,
+      marginTop: 80,
     },
     card: {
       borderRadius: 20,
@@ -250,6 +316,51 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       fontSize: 15,
       color: colors.textSecondary || colors.text,
       textAlign: "center",
+    },
+    image: {
+      width: 25,
+      height: 25,
+      tintColor: colors.success,
+    },
+    googleButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#fff",
+      borderWidth: 1,
+      borderColor: "#ddd",
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginBottom: 20,
+      gap: 12,
+    },
+    googleIconContainer: {
+      width: 24,
+      height: 24,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    googleButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#333",
+    },
+    dividerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 20,
+      gap: 12,
+    },
+    divider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border || "#e0e0e0",
+    },
+    dividerText: {
+      fontSize: 13,
+      color: colors.textSecondary || "#999",
+      fontWeight: "500",
     },
     form: {
       gap: 16,

@@ -1,5 +1,5 @@
 import { AppButton, AppContainer } from "@/components/ui";
-import { BACKEND_URL } from "@/const";
+import { BACKEND_URL, AUTH_URL } from "@/const";
 import { useAppTheme } from "@/theme/ThemeContext";
 import useAppColors from "@/theme/useAppColors";
 import { useRouter } from "expo-router";
@@ -11,25 +11,39 @@ export default function Index() {
   const { toggleTheme, theme } = useAppTheme();
   const router = useRouter();
 
-  const [response, setResponse] = useState<string>("Loading...");
-  const [error, setError] = useState<string | null>(null);
+  const [backendResponse, setBackendResponse] = useState<string>("Loading...");
+  const [backendError, setBackendError] = useState<string | null>(null);
 
-  const BASE_URL = BACKEND_URL;
+  const [authResponse, setAuthResponse] = useState<string>("Loading...");
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    const testApi = async () => {
+    const testBackendApi = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/`);
+        const res = await fetch(`${BACKEND_URL}/`);
 
         const data = await res.json();
-        setResponse(JSON.stringify(data));
+        setBackendResponse(JSON.stringify(data));
       } catch (err: any) {
         console.log("API ERROR:", err);
-        setError(err.message);
+        setBackendError(err.message);
       }
     };
 
-    testApi();
+    const testAuthApi = async () => {
+      try {
+        const res = await fetch(`${AUTH_URL}/`);
+
+        const data = await res.json();
+        setAuthResponse(JSON.stringify(data));
+      } catch (err: any) {
+        console.log("API ERROR:", err);
+        setAuthError(err.message);
+      }
+    };
+
+    testAuthApi();
+    testBackendApi();
   }, []);
 
   return (
@@ -41,10 +55,7 @@ export default function Index() {
       <AppButton title="Toggle Theme" onPress={toggleTheme} />
       <AppButton title="Login" onPress={() => router.navigate("/login")} />
 
-      <AppButton
-        title="Home tab"
-        onPress={() => router.navigate("/(tabs)")}
-      />
+      <AppButton title="Home tab" onPress={() => router.navigate("/(tabs)")} />
 
       <AppButton
         title="About tab"
@@ -53,17 +64,25 @@ export default function Index() {
 
       {/* API RESULT */}
       <Text style={{ color: colors.text, marginTop: 20 }}>
-        API Response: {response}
+        API Response from main backend: {backendResponse}
       </Text>
 
       {/* ERROR */}
-      {error && (
-        <Text style={{ color: "red", marginTop: 10 }}>Error: {error}</Text>
+      {backendError && (
+        <Text style={{ color: "red", marginTop: 10 }}>
+          Error: {backendError}
+        </Text>
       )}
 
-      <Text style={{ color: colors.success, marginTop: 20 }}>
-        Success Color Example
+      {/* API RESULT */}
+      <Text style={{ color: colors.text, marginTop: 20 }}>
+        API Response from auth backend: {authResponse}
       </Text>
+
+      {/* ERROR */}
+      {authError && (
+        <Text style={{ color: "red", marginTop: 10 }}>Error: {authError}</Text>
+      )}
     </AppContainer>
   );
 }

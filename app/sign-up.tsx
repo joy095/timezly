@@ -17,7 +17,7 @@ import { Card, TextInput, Divider } from "react-native-paper";
 import { authClient } from "@/lib/auth-client";
 import { Image } from "expo-image";
 import * as GoogleIcon from "@/assets/images/google.svg";
-import { blurhash } from "@/utils";
+import { getCallbackURL } from "@/utils";
 
 export default function SignUpScreen() {
   const colors = useAppColors();
@@ -114,7 +114,7 @@ export default function SignUpScreen() {
     try {
       const { error } = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/(app)/home", // Redirect after successful auth
+        callbackURL: getCallbackURL(), // Redirect after successful auth
       });
 
       if (error) {
@@ -178,8 +178,6 @@ export default function SignUpScreen() {
                         style={styles.image}
                         source={GoogleIcon}
                         contentFit="contain"
-                        transition={800}
-                        placeholder={{ blurhash }}
                       />
                     </View>
                     <Text style={styles.googleButtonText}>
@@ -304,8 +302,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 24,
+      marginTop: 80,
     },
     card: {
       borderRadius: 20,
@@ -347,7 +344,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       backgroundColor: "#fff",
       borderWidth: 1,
       borderColor: "#ddd",
-      borderRadius: 12,
+      borderRadius: 8,
       paddingVertical: 12,
       paddingHorizontal: 16,
       marginBottom: 20,

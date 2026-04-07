@@ -280,8 +280,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 24,
+      marginTop: 80,
     },
     card: {
       borderRadius: 20,

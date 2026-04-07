@@ -121,7 +121,15 @@ export default function EmailVerifyScreen() {
     }
 
     // Success - navigate to next screen
-    router.replace("/(app)/home");
+    router.push({
+      pathname: "/success",
+      params: {
+        title: "Email Verified 🎉",
+        message: "Your email has been successfully verified.",
+        buttonText: "Go to Login",
+        redirectTo: "/login",
+      },
+    });
   };
 
   const canResend = resendTimer === 0 && !isResending;

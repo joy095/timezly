@@ -9,9 +9,6 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import * as successImage from "@/assets/images/successmark.svg";
 import { blurhash } from "@/utils";
 
-// Use a checkmark icon or success illustration
-// const successImage = require("@/assets/images/successmark.png");
-
 export default function SuccessScreen() {
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
