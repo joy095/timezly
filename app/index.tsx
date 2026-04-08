@@ -2,6 +2,7 @@ import { AppButton, AppContainer } from "@/components/ui";
 import { BACKEND_URL, AUTH_URL } from "@/const";
 import { useAppTheme } from "@/theme/ThemeContext";
 import useAppColors from "@/theme/useAppColors";
+import { bootstrapAuth } from "@/utils/auth";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Text } from "react-native";
@@ -46,6 +47,13 @@ export default function Index() {
     testBackendApi();
   }, []);
 
+  useEffect(() => {
+    bootstrapAuth().then(({ authenticated }) => {
+      // router.replace(authenticated ? "/(tabs)" : "/login");
+      console.log("authenticated", authenticated);
+    });
+  }, []);
+
   return (
     <AppContainer>
       <Text style={{ color: colors.text, marginBottom: 20 }}>
@@ -53,7 +61,7 @@ export default function Index() {
       </Text>
 
       <AppButton title="Toggle Theme" onPress={toggleTheme} />
-      <AppButton title="Login" onPress={() => router.navigate("/login")} />
+      <AppButton title="Login" onPress={() => router.push("/login")} />
 
       <AppButton title="Home tab" onPress={() => router.navigate("/(tabs)")} />
 

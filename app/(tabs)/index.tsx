@@ -1,7 +1,7 @@
 import { AppButton, AppContainer } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -25,35 +25,39 @@ export default function HomeTab() {
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const { data: session, isPending } = authClient.useSession();
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  useEffect(() => console.log(session));
+
   const handleLogout = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          setIsLoggingOut(true);
-          try {
-            await authClient.signOut({
-              fetchOptions: {
-                onSuccess: () => {
-                  router.replace("/login");
-                },
-                onError: (ctx) => {
-                  Alert.alert("Error", ctx.error.message);
-                  setIsLoggingOut(false);
-                },
-              },
-            });
-          } catch (error) {
-            Alert.alert("Error", "Failed to sign out. Please try again.");
-            setIsLoggingOut(false);
-          }
-        },
-      },
-    ]);
+    const { error } = await authClient.signOut();
+    // Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    //   { text: "Cancel", style: "cancel" },
+    //   {
+    //     text: "Sign Out",
+    //     style: "destructive",
+    //     onPress: async () => {
+    //       setIsLoggingOut(true);
+    //       try {
+    //         await authClient.signOut({
+    //           fetchOptions: {
+    //             onSuccess: () => {
+    //               router.replace("/login");
+    //             },
+    //             onError: (ctx) => {
+    //               Alert.alert("Error", ctx.error.message);
+    //               setIsLoggingOut(false);
+    //             },
+    //           },
+    //         });
+    //       } catch (error) {
+    //         Alert.alert("Error", "Failed to sign out. Please try again.");
+    //         setIsLoggingOut(false);
+    //       }
+    //     },
+    //   },
+    // ]);
   };
 
   if (isPending) {

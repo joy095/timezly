@@ -1,7 +1,7 @@
 import { AppButton, AppContainer, AppInput } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
