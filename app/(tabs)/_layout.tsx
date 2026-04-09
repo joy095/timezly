@@ -1,9 +1,31 @@
+// app/(tabs)/_layout.tsx
+import { Redirect, Tabs } from "expo-router";
+import { View, ActivityIndicator } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Tabs } from "expo-router";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
+import { authStore$ } from "@/stores/authStore";
+import { observer } from "@legendapp/state/react";
 
-export default function TabLayout() {
+export default observer(function TabLayout() {
+
+  const isPending = authStore$.isPending.get();
+  const session = authStore$.session.get();
+
+  if (isPending) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // If NOT logged in, redirect to login
+  if (!session) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: "blue" }}>
+    <Tabs>
       <Tabs.Screen
         name="index"
         options={{
@@ -13,15 +35,26 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
-        name="about"
+        name="explore"
         options={{
-          title: "About",
+          title: "Explore",
           tabBarIcon: ({ color }) => (
-            <FontAwesome size={28} name="question" color={color} />
+            <MaterialIcons name="travel-explore" size={24} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => (
+            <AntDesign name="profile" size={24} color={color} />
           ),
         }}
       />
     </Tabs>
   );
-}
+});

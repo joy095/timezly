@@ -1,8 +1,7 @@
-import { AppButton, AppInput, AppContainer } from "@/components/ui";
-import { signUpSchema } from "@/schemas/auth.schema";
+import { AppButton, AppContainer, AppInput } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,50 +10,41 @@ import {
   Platform,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
 } from "react-native";
-import { Card, TextInput, Divider } from "react-native-paper";
-import { authClient } from "@/lib/auth-client";
+import {
+  ActivityIndicator,
+  Card,
+  Divider,
+  TextInput,
+} from "react-native-paper";
+import { loginSchema } from "@/schemas/auth.schema";
+import { signIn } from "@/lib/auth-client";
 import { Image } from "expo-image";
-import * as GoogleIcon from "@/assets/images/google.svg";
 import { getCallbackURL } from "@/utils";
 
-export default function SignUpScreen() {
+export default function LoginScreen() {
+  const router = useRouter();
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
-  const router = useRouter();
-  const params = useLocalSearchParams();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
+
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const [form, setForm] = useState<{
-    name: string;
     email: string;
     password: string;
   }>({
-    name: "",
     email: "",
     password: "",
   });
 
   const [errors, setErrors] = useState<{
-    name?: string;
     email?: string;
     password?: string;
     general?: string;
   }>({});
-
-  // Pre-fill email from login screen if passed
-  useEffect(() => {
-    const emailParam = Array.isArray(params.email)
-      ? params.email[0]
-      : params.email;
-    if (emailParam) {
-      setForm((prev) => ({ ...prev, email: emailParam }));
-    }
-  }, [params.email]);
 
   const updateField = useCallback(
     (field: keyof typeof form) => (text: string) => {
@@ -69,10 +59,10 @@ export default function SignUpScreen() {
     [errors],
   );
 
-  const handleSignup = async () => {
+  const handleLogin = async () => {
     setErrors({});
 
-    const result = signUpSchema.safeParse(form);
+    const result = loginSchema.safeParse(form);
 
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -86,25 +76,26 @@ export default function SignUpScreen() {
 
     setIsPending(true);
 
-    const { error } = await authClient.signUp.email({
-      name: form.name,
-      email: form.email,
-      password: form.password,
-    });
-
-    setIsPending(false);
-
-    if (error) {
-      setErrors({
-        general: error.message ?? "Sign up failed. Please try again.",
+    try {
+      const { error } = await signIn.email({
+        email: form.email,
+        password: form.password,
+        rememberMe: true,
       });
-      return;
-    }
 
-    router.replace({
-      pathname: "/verify-email",
-      params: { email: form.email },
-    });
+      if (error) {
+        setErrors({ general: error.message ?? "Login failed" });
+        return;
+      }
+
+      router.replace("/(tabs)/profile");
+    } catch (err) {
+      setErrors({
+        general: "An unexpected error occurred. Please try again.",
+      });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const handleLoginWithGoogle = async () => {
@@ -112,7 +103,7 @@ export default function SignUpScreen() {
     setErrors({});
 
     try {
-      const { error } = await authClient.signIn.social({
+      const { error } = await signIn.social({
         provider: "google",
         callbackURL: getCallbackURL(), // Redirect after successful auth
       });
@@ -132,14 +123,19 @@ export default function SignUpScreen() {
     }
   };
 
-  const navigateToLogin = () => {
-    router.replace({
-      pathname: "/login",
+  const navigateToSignUp = () => {
+    router.navigate({
+      pathname: "/sign-up",
       params: { email: form.email },
     });
   };
 
-  const isFormValid = form.name && form.email && form.password;
+  const navigateToForgotPassword = () => {
+    router.navigate({
+      pathname: "/(auth)/forgot-password",
+      params: { email: form.email },
+    });
+  };
 
   return (
     <AppContainer contentStyle={styles.container}>
@@ -156,9 +152,9 @@ export default function SignUpScreen() {
             <Card.Content style={styles.cardContent}>
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.title}>Create Account</Text>
+                <Text style={styles.title}>Welcome Back</Text>
                 <Text style={styles.subtitle}>
-                  Join us and start your journey today
+                  Sign in to continue to your account
                 </Text>
               </View>
 
@@ -176,7 +172,7 @@ export default function SignUpScreen() {
                     <View style={styles.googleIconContainer}>
                       <Image
                         style={styles.image}
-                        source={GoogleIcon}
+                        source={require("@/assets/images/google.png")}
                         contentFit="contain"
                       />
                     </View>
@@ -190,7 +186,7 @@ export default function SignUpScreen() {
               {/* Divider */}
               <View style={styles.dividerContainer}>
                 <Divider style={styles.divider} />
-                <Text style={styles.dividerText}>or sign up with email</Text>
+                <Text style={styles.dividerText}>or sign in with email</Text>
                 <Divider style={styles.divider} />
               </View>
 
@@ -202,22 +198,6 @@ export default function SignUpScreen() {
                     <Text style={styles.errorBannerText}>{errors.general}</Text>
                   </View>
                 )}
-
-                {/* Name Input */}
-                <View style={styles.inputGroup}>
-                  <AppInput
-                    label="Full Name"
-                    value={form.name}
-                    onChangeText={updateField("name")}
-                    autoCapitalize="words"
-                    autoComplete="name"
-                    error={errors.name}
-                    left={<TextInput.Icon icon="account-outline" size={20} />}
-                  />
-                  {errors.name && (
-                    <Text style={styles.fieldError}>{errors.name}</Text>
-                  )}
-                </View>
 
                 {/* Email Input */}
                 <View style={styles.inputGroup}>
@@ -243,14 +223,13 @@ export default function SignUpScreen() {
                     value={form.password}
                     secureTextEntry={!showPassword}
                     onChangeText={updateField("password")}
-                    autoComplete="new-password"
+                    autoComplete="password"
                     error={errors.password}
                     left={<TextInput.Icon icon="lock-outline" size={20} />}
                     right={
                       <TextInput.Icon
                         icon={showPassword ? "eye-off" : "eye"}
                         onPress={() => setShowPassword((prev) => !prev)}
-                        forceTextInputFocus={false}
                         size={20}
                       />
                     }
@@ -260,26 +239,37 @@ export default function SignUpScreen() {
                   )}
                 </View>
 
-                {/* Sign Up Button */}
+                {/* Forgot Password */}
+                <TouchableOpacity
+                  onPress={navigateToForgotPassword}
+                  style={styles.forgotPasswordContainer}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.forgotPasswordText}>
+                    Forgot password?
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Login Button */}
                 <AppButton
-                  title="Create Account"
-                  onPress={handleSignup}
+                  title="Sign In"
+                  onPress={handleLogin}
                   loading={isPending}
-                  disabled={isPending || !isFormValid || isGoogleLoading}
-                  style={styles.signUpButton}
-                  contentStyle={styles.signUpButtonContent}
+                  disabled={isPending || !form.email || !form.password}
+                  style={styles.loginButton}
+                  contentStyle={styles.loginButtonContent}
                 />
 
-                {/* Login Link */}
+                {/* Sign Up Link */}
                 <View style={styles.footer}>
                   <Text style={styles.footerText}>
-                    Already have an account?{" "}
+                    Don&#39;t have an account?{" "}
                   </Text>
                   <TouchableOpacity
-                    onPress={navigateToLogin}
+                    onPress={navigateToSignUp}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.loginLink}>Sign In</Text>
+                    <Text style={styles.signUpLink}>Create one</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -318,7 +308,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     },
     header: {
       alignItems: "center",
-      marginBottom: 24,
+      marginBottom: 32,
     },
     title: {
       fontSize: 32,
@@ -335,7 +325,6 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     image: {
       width: 25,
       height: 25,
-      tintColor: colors.success,
     },
     googleButton: {
       flexDirection: "row",
@@ -403,11 +392,23 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       fontSize: 14,
       fontWeight: "500",
     },
-    signUpButton: {
+    forgotPasswordContainer: {
+      alignSelf: "flex-end",
+      marginTop: -8,
+      marginBottom: 8,
+      paddingVertical: 4,
+      paddingHorizontal: 4,
+    },
+    forgotPasswordText: {
+      color: colors.primary,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    loginButton: {
       borderRadius: 12,
       marginTop: 8,
     },
-    signUpButtonContent: {
+    loginButtonContent: {
       height: 52,
     },
     footer: {
@@ -421,7 +422,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       fontSize: 15,
       color: colors.textSecondary || colors.text,
     },
-    loginLink: {
+    signUpLink: {
       color: colors.primary,
       fontSize: 15,
       fontWeight: "700",

@@ -12,8 +12,8 @@ export const authClient = createAuthClient({
   baseURL: AUTH_URL, // Base URL of Better Auth backend.
   plugins: [
     expoClient({
-      scheme: "myapp",
-      storagePrefix: "myapp",
+      scheme: "timezly",
+      storagePrefix: "timezly",
       storage: SecureStore,
     }),
 
@@ -22,3 +22,5 @@ export const authClient = createAuthClient({
     emailOTPClient(),
   ],
 });
+
+export const { signIn, signUp, signOut, useSession } = authClient;

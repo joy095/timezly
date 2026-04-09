@@ -1,12 +1,11 @@
 import { AppButton, AppContainer } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
 import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
+import { Href, router, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Card } from "react-native-paper";
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
-import * as successImage from "@/assets/images/successmark.svg";
 import { blurhash } from "@/utils";
 
 export default function SuccessScreen() {
@@ -21,9 +20,13 @@ export default function SuccessScreen() {
     "Your password has been changed successfully.";
   const buttonText = (params.buttonText as string) || "Continue";
   const redirectTo = (params.redirectTo as string) || "/login";
+  const ALLOWED_REDIRECTS = ["/login", "/home", "/dashboard"] as const;
 
   const handleContinue = () => {
-    router.replace(redirectTo as any);
+    const safeRedirect = ALLOWED_REDIRECTS.includes(redirectTo as any) 
+    ? redirectTo 
+    : "/login";
+  router.replace(safeRedirect as Href);
   };
 
   return (
@@ -48,7 +51,7 @@ export default function SuccessScreen() {
                 >
                   <Image
                     style={styles.image}
-                    source={successImage}
+                    source={require("@/assets/images/successmark.svg")}
                     contentFit="contain"
                     transition={800}
                     placeholder={{ blurhash }}

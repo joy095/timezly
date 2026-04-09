@@ -8,7 +8,7 @@ export const otpTimerState = observable({
 
 export const getRemainingSeconds = (email: string): number | null => {
   const entry = otpTimerState.timers[email].get();
-  const now = now$.get(); // 🔥 reactive dependency
+  const now = now$.get(); // reactive dependency
 
   if (!entry || entry.expiresAt === null) return null;
 

@@ -25,6 +25,12 @@ export default function EmailVerifyScreen() {
   const params = useLocalSearchParams();
   const email = Array.isArray(params.email) ? params.email[0] : params.email;
 
+  useEffect(() => {
+    if (!email) {
+      router.replace("/login");
+    }
+  }, [email, router]);
+
   const [isPending, setIsPending] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [isResending, setIsResending] = useState(false);
@@ -73,20 +79,24 @@ export default function EmailVerifyScreen() {
     setIsResending(true);
     setErrors({});
 
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email: form.email,
-      type: "email-verification",
-    });
+    try {
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email: form.email,
+        type: "email-verification",
+      });
 
-    setIsResending(false);
+      if (error) {
+        setErrors({ general: error.message ?? "Failed to resend code" });
+        return;
+      }
 
-    if (error) {
-      setErrors({ general: error.message ?? "Failed to resend code" });
-      return;
+      // Start cooldown
+      setResendTimer(RESEND_COOLDOWN);
+    } catch (err) {
+      setErrors({ general: "Failed to resend code. Please try again." });
+    } finally {
+      setIsResending(false);
     }
-
-    // Start cooldown
-    setResendTimer(RESEND_COOLDOWN);
   };
 
   const handleVerifyEmail = async () => {
@@ -107,29 +117,32 @@ export default function EmailVerifyScreen() {
     }
 
     setIsPending(true);
+    try {
+      const { error } = await authClient.emailOtp.verifyEmail({
+        email: form.email,
+        otp: form.otp,
+      });
 
-    const { error } = await authClient.emailOtp.verifyEmail({
-      email: form.email,
-      otp: form.otp,
-    });
+      if (error) {
+        setErrors({ general: error.message ?? "Email verification failed" });
+        return;
+      }
 
-    setIsPending(false);
-
-    if (error) {
-      setErrors({ general: error.message ?? "Email verification failed" });
-      return;
+      // Success - navigate to next screen
+      router.push({
+        pathname: "/success",
+        params: {
+          title: "Email Verified 🎉",
+          message: "Your email has been successfully verified.",
+          buttonText: "Go to Login",
+          redirectTo: "/login",
+        },
+      });
+    } catch (err) {
+      setErrors({ general: "Verification failed. Please try again." });
+    } finally {
+      setIsPending(false);
     }
-
-    // Success - navigate to next screen
-    router.push({
-      pathname: "/success",
-      params: {
-        title: "Email Verified 🎉",
-        message: "Your email has been successfully verified.",
-        buttonText: "Go to Login",
-        redirectTo: "/login",
-      },
-    });
   };
 
   const canResend = resendTimer === 0 && !isResending;
@@ -274,7 +287,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       marginBottom: 20,
     },
     errorContainer: {
-      backgroundColor: colors.error + "15", // 15 = ~8% opacity in hex
+     backgroundColor: colors.error + "15", // 15 = ~8% opacity in hex
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 10,

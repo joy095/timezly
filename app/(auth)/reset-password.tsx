@@ -4,11 +4,8 @@ import {
   AppInput,
   AppOTPInput,
 } from "@/components/ui";
-import {
-  forgetPasswordSchema,
-  resetPasswordOtpSchema,
-} from "@/schemas/auth.schema";
-import { getRemainingSeconds, otpTimerState } from "@/store/otpTimerStore";
+import { resetPasswordOtpSchema } from "@/schemas/auth.schema";
+import { getRemainingSeconds, otpTimerState } from "@/stores/otpTimerStore";
 import useAppColors from "@/theme/useAppColors";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,6 +37,11 @@ export default function ResetPasswordScreen() {
     ? params.email[0]
     : (params.email ?? "");
 
+  useEffect(() => {
+    if (!email) {
+      router.replace("/(auth)/forgot-password");
+    }
+  }, [email]);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email, password: "", otp: "" });
   const [errors, setErrors] = useState<{
@@ -78,22 +80,26 @@ export default function ResetPasswordScreen() {
     setErrors({});
     setIsResending(true);
 
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email: form.email,
-      type: "forget-password",
-    });
+    try {
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email: form.email,
+        type: "forget-password",
+      });
 
-    setIsResending(false);
+      if (error) {
+        setErrors({ general: error.message ?? "Failed to resend code" });
+        return;
+      }
 
-    if (error) {
-      setErrors({ general: error.message ?? "Failed to resend code" });
-      return;
+      // Start cooldown timer
+      otpTimerState.timers[form.email].set({
+        expiresAt: Date.now() + RESEND_COOLDOWN_MS,
+      });
+    } catch (err) {
+      setErrors({ general: "Network error. Please try again." });
+    } finally {
+      setIsResending(false);
     }
-
-    // Start cooldown timer
-    otpTimerState.timers[email].set({
-      expiresAt: Date.now() + RESEND_COOLDOWN_MS,
-    });
   };
 
   const handleResetPassword = async () => {
@@ -112,41 +118,36 @@ export default function ResetPasswordScreen() {
 
     setIsPending(true);
 
-    // Use better-auth's email OTP reset password
-    const { error } = await authClient.emailOtp.resetPassword({
-      email: form.email,
-      otp: form.otp,
-      password: form.password,
-    });
-
-    setIsPending(false);
-
-    if (error) {
-      setErrors({ general: error.message ?? "Failed to reset password" });
-      return;
-    }
-
-    // Clear timer and navigate to success
-    otpTimerState.timers[email].set({ expiresAt: null });
-
-    // Option 1: Navigate to login with success message
-    router.replace({
-      pathname: "/login",
-      params: {
+    try {
+      // Use better-auth's email OTP reset password
+      const { error } = await authClient.emailOtp.resetPassword({
         email: form.email,
-        message:
-          "Password reset successful! Please sign in with your new password.",
-      },
-    });
+        otp: form.otp,
+        password: form.password,
+      });
 
-    // Option 2: Or auto-sign in after reset (if better-auth supports it)
-    // const { error: signInError } = await authClient.signIn.email({
-    //   email: form.email,
-    //   password: form.password,
-    // });
-    // if (!signInError) {
-    //   router.replace("/(app)/home");
-    // }
+      if (error) {
+        setErrors({ general: error.message ?? "Failed to reset password" });
+        return;
+      }
+
+      // Clear timer and navigate to success
+      otpTimerState.timers[form.email].set({ expiresAt: null });
+
+      // Option 1: Navigate to login with success message
+      router.replace({
+        pathname: "/login",
+        params: {
+          email: form.email,
+          message:
+            "Password reset successful! Please sign in with your new password.",
+        },
+      });
+    } catch (err) {
+      setErrors({ general: "Network error. Please try again." });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const seconds = displaySeconds.get();

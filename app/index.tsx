@@ -1,11 +1,8 @@
-import { AppButton, AppContainer } from "@/components/ui";
 import { BACKEND_URL, AUTH_URL } from "@/const";
 import { useAppTheme } from "@/theme/ThemeContext";
 import useAppColors from "@/theme/useAppColors";
-import { bootstrapAuth } from "@/utils/auth";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text } from "react-native";
 
 export default function Index() {
   const colors = useAppColors();
@@ -47,50 +44,40 @@ export default function Index() {
     testBackendApi();
   }, []);
 
-  useEffect(() => {
-    bootstrapAuth().then(({ authenticated }) => {
-      // router.replace(authenticated ? "/(tabs)" : "/login");
-      console.log("authenticated", authenticated);
-    });
-  }, []);
-
   return (
-    <AppContainer>
-      <Text style={{ color: colors.text, marginBottom: 20 }}>
-        Current Theme: {theme}
-      </Text>
+    // <AppContainer>
+    //   <Text style={{ color: colors.text, marginBottom: 20 }}>
+    //     Current Theme: {theme}
+    //   </Text>
 
-      <AppButton title="Toggle Theme" onPress={toggleTheme} />
-      <AppButton title="Login" onPress={() => router.push("/login")} />
+    //   <AppButton title="Toggle Theme" onPress={toggleTheme} />
+    //   <AppButton title="Login" onPress={() => router.push("/login")} />
 
-      <AppButton title="Home tab" onPress={() => router.navigate("/(tabs)")} />
+    //   <AppButton title="Home tab" onPress={() => router.navigate("/(tabs)")} />
 
-      <AppButton
-        title="About tab"
-        onPress={() => router.navigate("/(tabs)/about")}
-      />
+    //   {/* API RESULT */}
+    //   <Text style={{ color: colors.text, marginTop: 20 }}>
+    //     API Response from main backend: {backendResponse}
+    //   </Text>
 
-      {/* API RESULT */}
-      <Text style={{ color: colors.text, marginTop: 20 }}>
-        API Response from main backend: {backendResponse}
-      </Text>
+    //   {/* ERROR */}
+    //   {backendError && (
+    //     <Text style={{ color: "red", marginTop: 10 }}>
+    //       Error: {backendError}
+    //     </Text>
+    //   )}
 
-      {/* ERROR */}
-      {backendError && (
-        <Text style={{ color: "red", marginTop: 10 }}>
-          Error: {backendError}
-        </Text>
-      )}
+    //   {/* API RESULT */}
+    //   <Text style={{ color: colors.text, marginTop: 20 }}>
+    //     API Response from auth backend: {authResponse}
+    //   </Text>
 
-      {/* API RESULT */}
-      <Text style={{ color: colors.text, marginTop: 20 }}>
-        API Response from auth backend: {authResponse}
-      </Text>
+    //   {/* ERROR */}
+    //   {authError && (
+    //     <Text style={{ color: "red", marginTop: 10 }}>Error: {authError}</Text>
+    //   )}
+    // </AppContainer>
 
-      {/* ERROR */}
-      {authError && (
-        <Text style={{ color: "red", marginTop: 10 }}>Error: {authError}</Text>
-      )}
-    </AppContainer>
+    <Redirect href="/welcome" />
   );
 }

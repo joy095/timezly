@@ -12,48 +12,33 @@ import {
   Image,
 } from "react-native";
 import { ActivityIndicator, Card, Divider } from "react-native-paper";
-import { authClient } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
 import {
   Ionicons,
   MaterialIcons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
+import { authStore$ } from "@/stores/authStore";
 
-export default function ProfileScreen() {
+export default function ProfileTab() {
   const router = useRouter();
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
-  const { data: session, isPending } = authClient.useSession();
+  const isPending = authStore$.isPending.get();
+  const session = authStore$.session.get();
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          setIsLoggingOut(true);
-          try {
-            await authClient.signOut({
-              fetchOptions: {
-                onSuccess: () => {
-                  router.replace("/login");
-                },
-                onError: (ctx) => {
-                  Alert.alert("Error", ctx.error.message);
-                  setIsLoggingOut(false);
-                },
-              },
-            });
-          } catch (error) {
-            Alert.alert("Error", "Failed to sign out. Please try again.");
-            setIsLoggingOut(false);
-          }
-        },
-      },
-    ]);
+    setIsLoggingOut(true);
+    const { error } = await signOut();
+
+    if (error) {
+      Alert.alert("Error", "Failed to sign out. Please try again.");
+      setIsLoggingOut(false);
+    }
+    // On success, session will become null and component will re-render to signed-out state
   };
 
   if (isPending) {
@@ -96,7 +81,7 @@ export default function ProfileScreen() {
     );
   }
 
-  const { user } = session;
+  const user = authStore$.user.get();
   const userInitials = user.name
     ? user.name
         .split(" ")
@@ -104,7 +89,7 @@ export default function ProfileScreen() {
         .join("")
         .toUpperCase()
         .slice(0, 2)
-    : user.email?.[0].toUpperCase() || "?";
+    : user.email?.[0]?.toUpperCase() || "?";
 
   const menuItems = [
     {
@@ -333,8 +318,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     },
     scrollContent: {
       flexGrow: 1,
-      justifyContent: "center",
-      marginTop: 80,
+      // justifyContent: "center",
     },
     loadingContainer: {
       flex: 1,
