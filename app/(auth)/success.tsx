@@ -6,7 +6,6 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Card } from "react-native-paper";
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
-import { blurhash } from "@/utils";
 
 export default function SuccessScreen() {
   const colors = useAppColors();
@@ -51,10 +50,9 @@ export default function SuccessScreen() {
                 >
                   <Image
                     style={styles.image}
-                    source={require("@/assets/images/successmark.svg")}
+                    source={require("@/assets/images/successmark.png")}
                     contentFit="contain"
                     transition={800}
-                    placeholder={{ blurhash }}
                   />
                 </View>
               </Animated.View>

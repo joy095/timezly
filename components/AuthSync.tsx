@@ -1,19 +1,26 @@
 // components/AuthSync.tsx
-import { useSession } from "@/lib/auth-client"
-import { authStore$ } from "@/stores/authStore"
+import { useEffect } from "react";
+import { useSession, authClient } from "@/lib/auth-client";
+import { authStore$ } from "@/stores/authStore";
 
 export function AuthSync() {
-  const { data, isPending } = useSession()
+  const { data, isPending } = useSession();
 
-  authStore$.isPending.set(isPending)
+  useEffect(() => {
+    authStore$.isPending.set(isPending);
 
-  if (!isPending) {
-    // Only write if value actually changed
-    if (authStore$.user.peek()?.id !== data?.user?.id) {
-      authStore$.session.set(data?.session ?? null)
-      authStore$.user.set(data?.user ?? null)
+    if (!isPending) {
+      if (authStore$.user.peek()?.id !== data?.user?.id) {
+        authStore$.session.set(data?.session ?? null);
+        authStore$.user.set(data?.user ?? null);
+      }
+
+      // Fetch and store JWT token
+      authClient.token().then((token) => {
+        authStore$.token.set(token ?? null);
+      });
     }
-  }
+  }, [isPending, data]);
 
-  return null
+  return null;
 }

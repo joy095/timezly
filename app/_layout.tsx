@@ -3,6 +3,7 @@ import { AuthSync } from "@/components/AuthSync";
 import { AppProviders } from "@/providers/AppProviders";
 import { CustomThemeProvider } from "@/theme/ThemeContext";
 import { Stack } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   return (
@@ -17,10 +18,10 @@ export default function RootLayout() {
 
 function RootLayoutInner() {
   return (
-    <>
+    <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }}>
         {/* Public - No auth needed */}
-        <Stack.Screen name="welcome" />
+        <Stack.Screen name="(welcome)/index" />
         <Stack.Screen name="index" />
         <Stack.Screen name="test" />
         <Stack.Screen name="(tabs)" />
@@ -28,6 +29,6 @@ function RootLayoutInner() {
         {/* Auth - Blocks logged in users */}
         <Stack.Screen name="(auth)" />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

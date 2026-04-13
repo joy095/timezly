@@ -14,10 +14,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useAppColors from "@/theme/useAppColors";
 import { useAppTheme } from "@/theme/ThemeContext";
 import { authStore$ } from "@/stores/authStore";
+import { observer } from "@legendapp/state/react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const { width, height } = Dimensions.get("window");
 
-export default function WelcomeScreen() {
+export default observer(function TabLayout() {
   const colors = useAppColors();
   const { theme } = useAppTheme();
   const router = useRouter();
@@ -97,6 +99,8 @@ export default function WelcomeScreen() {
           },
         ]}
       />
+
+      <ThemeToggle />
 
       {/* Skip Button - Top Right */}
       <TouchableOpacity
@@ -211,15 +215,10 @@ export default function WelcomeScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Guest hint */}
-        <Text style={[styles.guestHint, { color: colors.textMuted }]}>
-          Or skip to browse as guest →
-        </Text>
       </Animated.View>
     </View>
   );
-}
+})
 
 const styles = StyleSheet.create({
   container: {
@@ -324,9 +323,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-  guestHint: {
-    textAlign: "center",
-    fontSize: 13,
-    marginTop: 8,
-  },
+ 
 });

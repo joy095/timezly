@@ -1,15 +1,15 @@
 // app/(tabs)/_layout.tsx
-import { Redirect, Tabs } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { AntDesign, MaterialIcons } from "@expo/vector-icons";
-import { authStore$ } from "@/stores/authStore";
+import { Tabs, TabList, TabTrigger, TabSlot } from "expo-router/ui";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { observer } from "@legendapp/state/react";
+import { authStore$ } from "@/stores/authStore";
+import { FloatingBottomTabs } from "@/components/FloatingBottomTabs";
+import useAppColors from "@/theme/useAppColors";
 
 export default observer(function TabLayout() {
-
   const isPending = authStore$.isPending.get();
-  const session = authStore$.session.get();
+
+  const colors = useAppColors();
 
   if (isPending) {
     return (
@@ -19,42 +19,24 @@ export default observer(function TabLayout() {
     );
   }
 
-  // If NOT logged in, redirect to login
-  if (!session) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
   return (
-    <Tabs>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome size={28} name="home" color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: "Explore",
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="travel-explore" size={24} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <AntDesign name="profile" size={24} color={color} />
-          ),
-        }}
-      />
+    <Tabs style={styles.container}>
+      <View style={styles.content}>
+        <TabSlot />
+      </View>
+      <FloatingBottomTabs colors={colors} /> {/* Pass colors, not theme */}
+      <TabList style={styles.hidden}>
+        <TabTrigger name="index" href="/" />
+        <TabTrigger name="explore" href="/explore" />
+        <TabTrigger name="profile" href="/profile" />
+      </TabList>
     </Tabs>
   );
+});
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { flex: 1, paddingBottom: 100 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+  hidden: { display: "none" },
 });

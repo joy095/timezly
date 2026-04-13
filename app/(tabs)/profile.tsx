@@ -19,11 +19,28 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { authStore$ } from "@/stores/authStore";
+import { observer } from "@legendapp/state/react";
+import ImageUploader from "@/components/ImageUploader";
+import { UploadResult } from "@/components/ImageEditor";
+import { getAvatarUrl } from "@/utils";
 
-export default function ProfileTab() {
+export default observer(function ProfileTab() {
   const router = useRouter();
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
+
+  const [avatarKey, setAvatarKey] = useState(0);
+
+  const handleUploadComplete = (result: UploadResult) => {
+    if (typeof result.cloudUrl !== "string") {
+      console.error("cloudUrl is not a string:", result.cloudUrl);
+      return;
+    }
+    // cloudUrl is already a full URL — store it directly
+    // getAvatarUrl will return it as-is since it starts with https://
+    authStore$.user.image.set(result.cloudUrl);
+    setAvatarKey((prev) => prev + 1);
+  };
 
   const isPending = authStore$.isPending.get();
   const session = authStore$.session.get();
@@ -56,26 +73,26 @@ export default function ProfileTab() {
     return (
       <AppContainer contentStyle={styles.container}>
         <View style={styles.emptyContainer}>
-          <Card style={styles.emptyCard}>
-            <Card.Content style={styles.emptyCardContent}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons
-                  name="person-outline"
-                  size={48}
-                  color={colors.textSecondary}
-                />
-              </View>
-              <Text style={styles.emptyTitle}>Not Signed In</Text>
-              <Text style={styles.emptySubtitle}>
-                Please sign in to view your profile
-              </Text>
-              <AppButton
-                title="Sign In"
-                onPress={() => router.push("/login")}
-                style={styles.signInButton}
-              />
-            </Card.Content>
-          </Card>
+          {/* <Card style={styles.emptyCard}>
+            <Card.Content style={styles.emptyCardContent}> */}
+          <View style={styles.emptyIconContainer}>
+            <Ionicons
+              name="person-outline"
+              size={48}
+              color={colors.textSecondary}
+            />
+          </View>
+          <Text style={styles.emptyTitle}>Not Signed In</Text>
+          <Text style={styles.emptySubtitle}>
+            Please sign in to view your profile
+          </Text>
+          <AppButton
+            title="Sign In"
+            onPress={() => router.push("/login")}
+            style={styles.signInButton}
+          />
+          {/* </Card.Content>
+          </Card> */}
         </View>
       </AppContainer>
     );
@@ -90,6 +107,8 @@ export default function ProfileTab() {
         .toUpperCase()
         .slice(0, 2)
     : user.email?.[0]?.toUpperCase() || "?";
+
+  const avatarUrl = getAvatarUrl(user.image);
 
   const menuItems = [
     {
@@ -155,8 +174,12 @@ export default function ProfileTab() {
           <Card.Content style={styles.profileCardContent}>
             {/* Avatar */}
             <View style={styles.avatarContainer}>
-              {user.image ? (
-                <Image source={{ uri: user.image }} style={styles.avatar} />
+              {avatarUrl ? (
+                <Image
+                  key={avatarKey}
+                  source={{ uri: `${avatarUrl}?t=${avatarKey}` }}
+                  style={styles.avatar}
+                />
               ) : (
                 <View
                   style={[
@@ -167,12 +190,12 @@ export default function ProfileTab() {
                   <Text style={styles.avatarText}>{userInitials}</Text>
                 </View>
               )}
-              <View style={styles.statusBadge}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    { backgroundColor: colors.success },
-                  ]}
+              <View style={styles.cameraBadge}>
+                <ImageUploader
+                  uploadUrl={`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/image`}
+                  allowedCropModes={["square"]}
+                  onUploadComplete={handleUploadComplete}
+                  buttonTitle="Upload"
                 />
               </View>
             </View>
@@ -309,7 +332,7 @@ export default function ProfileTab() {
       </ScrollView>
     </AppContainer>
   );
-}
+});
 
 const getStyles = (colors: ReturnType<typeof useAppColors>) =>
   StyleSheet.create({
@@ -415,19 +438,38 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       fontWeight: "700",
       color: "#ffffff",
     },
-    statusBadge: {
-      position: "absolute",
-      bottom: 4,
-      right: 4,
+    cameraBadge: {
+      position: "relative",
+      right: 0,
+      left: 0,
+      marginLeft: "auto",
+      marginRight: "auto",
       backgroundColor: colors.surface,
       borderRadius: 12,
       padding: 2,
+      cursor: "pointer",
     },
-    statusDot: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
+
+    resultContainer: {
+      marginTop: 32,
+      alignItems: "center",
     },
+    resultText: {
+      fontSize: 16,
+      fontWeight: "bold",
+      marginBottom: 12,
+    },
+    previewImage: {
+      width: 150,
+      height: 150,
+      borderRadius: 75,
+      borderWidth: 2,
+    },
+    // statusDot: {
+    //   width: 14,
+    //   height: 14,
+    //   borderRadius: 7,
+    // },
     userName: {
       fontSize: 24,
       fontWeight: "700",

@@ -1,9 +1,12 @@
+import { AppButton, AppContainer } from "@/components/ui";
+import { router } from "expo-router";
 import { Text, View } from "react-native";
 
 export default function HomeTab() {
   return (
-    <View>
+    <AppContainer>
       <Text>HomeTab</Text>
-    </View>
-  )
+      <AppButton title="Test" onPress={() => router.push("/test")} />
+    </AppContainer>
+  );
 }

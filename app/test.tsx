@@ -1,39 +1,67 @@
-import { observer } from "@legendapp/state/react";
-import { authStore$ } from "@/stores/authStore";
-import { Image } from "expo-image";
-import { Text, View, ActivityIndicator } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Image, Text } from "react-native";
+import ImageUploader from "@/components/ImageUploader";
+import { UploadResult } from "@/components/ImageEditor";
+import useAppColors from "@/theme/useAppColors";
 
-export const UserAvatar = observer(() => {
-  const image = authStore$.user.image.get(); // fine-grained — only re-renders if image changes
-  console.log("user", authStore$.user.image.get());
-  if (!image) return null;
+export default function TestScreen() {
+  const colors = useAppColors();
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
-  return (
-    <Image
-      style={{ height: 25, width: 25, borderRadius: 25 }}
-      source={{ uri: image }}
-    />
-  );
-});
-
-export const ProfileScreen = observer(() => {
-  const name = authStore$.user.name.get(); // fine-grained — only re-renders if name changes
-  return <Text>{name}</Text>;
-});
-
-export default observer(function TestScreen() {
-  const isPending = authStore$.isPending.get();
-  const user = authStore$.user.get();
-
-  if (isPending) return <ActivityIndicator />;
-
-  if (!user) return <Text>Not logged in</Text>;
+  const handleUploadComplete = (result: UploadResult) => {
+    // This fires after the image is successfully cropped and uploaded to your server
+    console.log("Upload Success!", result);
+    setUploadedUrl(result.cloudUrl);
+  };
 
   return (
-    <View>
-      <Text>Hello from test screen</Text>
-      <UserAvatar />
-      <ProfileScreen />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Drop the ImageUploader anywhere you need image picking + cropping! 
+        Just pass your API endpoint and a completion handler.
+      */}
+      <ImageUploader
+        // uploadUrl="https://api.yourdomain.com/upload"
+        uploadUrl={`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/image`}
+        onUploadComplete={handleUploadComplete}
+        buttonTitle="Upload Profile Picture"
+      />
+
+      {/* Display the result for testing purposes */}
+      {uploadedUrl && (
+        <View style={styles.resultContainer}>
+          <Text style={[styles.resultText, { color: colors.text }]}>
+            Upload Successful!
+          </Text>
+          <Image
+            source={{ uri: uploadedUrl }}
+            style={[styles.previewImage, { borderColor: colors.border }]}
+          />
+        </View>
+      )}
     </View>
   );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  resultContainer: {
+    marginTop: 32,
+    alignItems: "center",
+  },
+  resultText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  previewImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 2,
+  },
 });

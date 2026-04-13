@@ -1,6 +1,3 @@
-export const blurhash =
-  "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
-
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 
@@ -8,4 +5,16 @@ export const getCallbackURL = () => {
   return Platform.OS === "web"
     ? window.location.origin + "/(tabs)"
     : Linking.createURL("(tabs)");
+};
+
+export const getAvatarUrl = (image?: string | null) => {
+  if (!image) return null;
+
+  // If already a full URL (Google, GitHub, etc.)
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  // Otherwise it's your stored path → prepend your base URL
+  return `${process.env.EXPO_PUBLIC_IMAGE_BASE_URL}/${image}`;
 };
