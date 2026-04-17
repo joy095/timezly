@@ -21,13 +21,9 @@ function RootLayoutInner() {
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }}>
         {/* Public - No auth needed */}
-        <Stack.Screen name="(welcome)/index" />
         <Stack.Screen name="index" />
         <Stack.Screen name="test" />
-        <Stack.Screen name="(tabs)" />
-
-        {/* Auth - Blocks logged in users */}
-        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="[...404]" options={{ headerTitle: "" }} />
       </Stack>
     </SafeAreaProvider>
   );

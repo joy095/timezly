@@ -35,7 +35,7 @@ export default function Index() {
         const data = await res.json();
         setAuthResponse(JSON.stringify(data));
       } catch (err: any) {
-        console.log("API ERROR:", err);
+        console.error("API ERROR:", err);
         setAuthError(err.message);
       }
     };
@@ -53,7 +53,7 @@ export default function Index() {
     //   <AppButton title="Toggle Theme" onPress={toggleTheme} />
     //   <AppButton title="Login" onPress={() => router.push("/login")} />
 
-    //   <AppButton title="Home tab" onPress={() => router.navigate("/(tabs)")} />
+    //   <AppButton title="Home tab" onPress={() => router.navigate("/(user-tabs)")} />
 
     //   {/* API RESULT */}
     //   <Text style={{ color: colors.text, marginTop: 20 }}>

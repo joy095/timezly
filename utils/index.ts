@@ -3,8 +3,8 @@ import * as Linking from "expo-linking";
 
 export const getCallbackURL = () => {
   return Platform.OS === "web"
-    ? window.location.origin + "/(tabs)"
-    : Linking.createURL("(tabs)");
+    ? window.location.origin + "/(user-tabs)"
+    : Linking.createURL("(user-tabs)");
 };
 
 export const getAvatarUrl = (image?: string | null) => {

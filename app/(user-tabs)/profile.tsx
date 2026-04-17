@@ -9,7 +9,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Image,
+  Pressable,
+  Modal,
 } from "react-native";
 import { ActivityIndicator, Card, Divider } from "react-native-paper";
 import { signOut } from "@/lib/auth-client";
@@ -17,14 +18,17 @@ import {
   Ionicons,
   MaterialIcons,
   MaterialCommunityIcons,
+  Octicons,
 } from "@expo/vector-icons";
 import { authStore$ } from "@/stores/authStore";
 import { observer } from "@legendapp/state/react";
 import ImageUploader from "@/components/ImageUploader";
 import { UploadResult } from "@/components/ImageEditor";
 import { getAvatarUrl } from "@/utils";
+import { appMode$ } from "@/stores/userClinicSwitch";
+import { Image } from "expo-image";
 
-export default observer(function ProfileTab() {
+export default observer(function UserProfileTab() {
   const router = useRouter();
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -36,8 +40,6 @@ export default observer(function ProfileTab() {
       console.error("cloudUrl is not a string:", result.cloudUrl);
       return;
     }
-    // cloudUrl is already a full URL — store it directly
-    // getAvatarUrl will return it as-is since it starts with https://
     authStore$.user.image.set(result.cloudUrl);
     setAvatarKey((prev) => prev + 1);
   };
@@ -47,7 +49,18 @@ export default observer(function ProfileTab() {
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+
+  const showLogoutConfirmation = () => {
+    setIsLogoutModalVisible(true);
+  };
+
+  const hideLogoutConfirmation = () => {
+    setIsLogoutModalVisible(false);
+  };
+
   const handleLogout = async () => {
+    hideLogoutConfirmation();
     setIsLoggingOut(true);
     const { error } = await signOut();
 
@@ -55,7 +68,6 @@ export default observer(function ProfileTab() {
       Alert.alert("Error", "Failed to sign out. Please try again.");
       setIsLoggingOut(false);
     }
-    // On success, session will become null and component will re-render to signed-out state
   };
 
   if (isPending) {
@@ -73,8 +85,6 @@ export default observer(function ProfileTab() {
     return (
       <AppContainer contentStyle={styles.container}>
         <View style={styles.emptyContainer}>
-          {/* <Card style={styles.emptyCard}>
-            <Card.Content style={styles.emptyCardContent}> */}
           <View style={styles.emptyIconContainer}>
             <Ionicons
               name="person-outline"
@@ -91,8 +101,6 @@ export default observer(function ProfileTab() {
             onPress={() => router.push("/login")}
             style={styles.signInButton}
           />
-          {/* </Card.Content>
-          </Card> */}
         </View>
       </AppContainer>
     );
@@ -141,6 +149,13 @@ export default observer(function ProfileTab() {
     },
   ];
 
+  const currentMode = appMode$.activeMode.get();
+
+  const toggleMode = () => {
+    const next = currentMode === "user" ? "clinic" : "user";
+    appMode$.activeMode.set(next);
+  };
+
   const renderIcon = (
     icon: string,
     iconSet: string,
@@ -163,6 +178,8 @@ export default observer(function ProfileTab() {
     }
   };
 
+  const organization = authStore$.organization.get();
+
   return (
     <AppContainer contentStyle={styles.container}>
       <ScrollView
@@ -177,8 +194,10 @@ export default observer(function ProfileTab() {
               {avatarUrl ? (
                 <Image
                   key={avatarKey}
-                  source={{ uri: `${avatarUrl}?t=${avatarKey}` }}
+                  // source={{ uri: `${avatarUrl}?t=${Date.now()}` }}
+                  source={{ uri: avatarUrl }}
                   style={styles.avatar}
+                  contentFit="cover"
                 />
               ) : (
                 <View
@@ -244,6 +263,34 @@ export default observer(function ProfileTab() {
           </Card.Content>
         </Card>
 
+        {/* Online clinic */}
+        <Card style={styles.menuCard} onPress={() => router.push("/")}>
+          <Card.Content
+            style={{ display: "flex", flexDirection: "row", gap: 5 }}
+          >
+            <Image
+              style={{ height: 100, width: 100 }}
+              source={require("@/assets/images/doctor.png")}
+              contentFit="contain"
+            />
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+              }}
+            >
+              <Text
+                style={{ color: colors.text, fontSize: 16, fontWeight: "500" }}
+              >
+                Start online clinic
+              </Text>
+              <Text style={{ color: colors.text }}>
+                It&#39;s easy to start online clinic and get more clients
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+
         {/* Menu Section */}
         <Card style={styles.menuCard}>
           <Card.Content style={styles.menuCardContent}>
@@ -290,7 +337,7 @@ export default observer(function ProfileTab() {
           <Card.Content style={styles.logoutCardContent}>
             <TouchableOpacity
               style={styles.logoutButton}
-              onPress={handleLogout}
+              onPress={showLogoutConfirmation}
               disabled={isLoggingOut}
               activeOpacity={0.8}
             >
@@ -325,11 +372,92 @@ export default observer(function ProfileTab() {
           </Card.Content>
         </Card>
 
+        {/* Logout Confirmation Modal */}
+        <Modal
+          visible={isLogoutModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={hideLogoutConfirmation}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={hideLogoutConfirmation}
+          >
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View
+                style={[
+                  styles.modalContainer,
+                  { backgroundColor: colors.surface },
+                ]}
+              >
+                {/* Icon */}
+                <View style={styles.modalIconContainer}>
+                  <Ionicons
+                    name="log-out-outline"
+                    size={28}
+                    color={colors.error}
+                  />
+                </View>
+
+                {/* Title */}
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Sign Out
+                </Text>
+
+                {/* Message */}
+                <Text
+                  style={[styles.modalMessage, { color: colors.textSecondary }]}
+                >
+                  Are you sure you want to sign out of your account?
+                </Text>
+
+                {/* Buttons */}
+                <View style={styles.modalButtonContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      styles.cancelButton,
+                      { borderColor: colors.border },
+                    ]}
+                    onPress={hideLogoutConfirmation}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[styles.cancelButtonText, { color: colors.text }]}
+                    >
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      styles.confirmButton,
+                      { backgroundColor: colors.error },
+                    ]}
+                    onPress={handleLogout}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.confirmButtonText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         {/* Version */}
         <Text style={[styles.versionText, { color: colors.textSecondary }]}>
           Version 1.0.0
         </Text>
       </ScrollView>
+
+      {organization && (
+        <TouchableOpacity onPress={toggleMode} style={styles.switchWrap}>
+          <Octicons name="arrow-switch" size={16} color={colors.textInverse} />
+          <Text style={styles.switchText}>Switch to clinic</Text>
+        </TouchableOpacity>
+      )}
     </AppContainer>
   );
 });
@@ -465,11 +593,6 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       borderRadius: 75,
       borderWidth: 2,
     },
-    // statusDot: {
-    //   width: 14,
-    //   height: 14,
-    //   borderRadius: 7,
-    // },
     userName: {
       fontSize: 24,
       fontWeight: "700",
@@ -584,10 +707,102 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     logoutArrow: {
       opacity: 0.6,
     },
+    switchWrap: {
+      position: "absolute",
+      bottom: 30,
+      alignSelf: "center",
+
+      flexDirection: "row",
+      alignItems: "center",
+
+      backgroundColor: colors.primary,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+
+      zIndex: 1000, // ensures it's above everything
+      elevation: 5, // Android shadow
+    },
+    switchText: {
+      color: colors.textInverse,
+    },
     versionText: {
       textAlign: "center",
       marginTop: 24,
       fontSize: 12,
       fontWeight: "500",
+    },
+
+    // Modal Styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 24,
+    },
+    modalContainer: {
+      width: "100%",
+      maxWidth: 320,
+      borderRadius: 20,
+      padding: 24,
+      alignItems: "center",
+      elevation: 5,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+    },
+    modalIconContainer: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: `${colors.error}15`,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
+    modalMessage: {
+      fontSize: 14,
+      textAlign: "center",
+      marginBottom: 24,
+      lineHeight: 20,
+    },
+    modalButtonContainer: {
+      flexDirection: "row",
+      width: "100%",
+      gap: 12,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cancelButton: {
+      borderWidth: 1,
+    },
+    confirmButton: {
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    cancelButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    confirmButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#ffffff",
     },
   });

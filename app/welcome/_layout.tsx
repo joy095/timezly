@@ -25,7 +25,7 @@ export default observer(function WelcomeLayout() {
   }
 
   if (session) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href="/(user-tabs)" />;
   }
 
   return (

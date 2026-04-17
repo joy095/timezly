@@ -12,47 +12,42 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { observer } from "@legendapp/state/react";
 import { authStore$ } from "@/stores/authStore";
-import { CustomColors } from "@/theme/types"; // Import the colors type
+import { CustomColors } from "@/theme/types";
 
 const { width } = Dimensions.get("window");
 
-interface FloatingBottomTabsProps {
-  colors: CustomColors; // Change from AppTheme to AppColors
+// Tab configuration type
+export interface TabConfig {
+  name: string;
+  href: string;
+  icon: string;
+  isCenter?: boolean;
+  authRequired?: boolean;
 }
 
-const TABS = [
-  {
-    name: "index",
-    href: "/",
-    icon: "home",
-    isCenter: false,
-    authRequired: false,
-  },
-  {
-    name: "explore",
-    href: "/explore",
-    icon: "search",
-    isCenter: false,
-    authRequired: false,
-  },
-  {
-    name: "profile",
-    href: "/profile",
-    icon: "person",
-    isCenter: false,
-    authRequired: false,
-  },
-] as const;
+interface FloatingBottomTabsProps {
+  colors: CustomColors;
+  tabs: TabConfig[]; // Tabs configuration as prop
+}
 
 export const FloatingBottomTabs = observer(function FloatingBottomTabs({
   colors,
+  tabs,
 }: FloatingBottomTabsProps) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
   const session = authStore$.session.get();
 
-  const scaleAnim = React.useRef(TABS.map(() => new Animated.Value(1))).current;
+  const scaleAnim = React.useRef(tabs.map(() => new Animated.Value(1))).current;
+
+  // Keep scaleAnim in sync with tabs length
+  React.useEffect(() => {
+    if (scaleAnim.length !== tabs.length) {
+      scaleAnim.length = 0;
+      tabs.forEach(() => scaleAnim.push(new Animated.Value(1)));
+    }
+  }, [tabs]);
 
   const handlePress = (index: number, href: string) => {
     Animated.sequence([
@@ -75,24 +70,23 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
     return pathname.startsWith(href) && href !== "/";
   };
 
-  const visibleTabs = TABS.filter((tab) => {
+  const visibleTabs = tabs.filter((tab) => {
     if (tab.authRequired && !session) return false;
     return true;
   });
 
   return (
     <View
-      style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}
+      style={[
+        styles.container,
+        {
+          paddingBottom: Math.max(insets.bottom, 0),
+          borderTopColor: colors.border || "#E5E5E5",
+          borderTopWidth: StyleSheet.hairlineWidth,
+        },
+      ]}
     >
-      <View
-        style={[
-          styles.tabBar,
-          {
-            backgroundColor: colors.surface,
-            shadowColor: colors.shadow,
-          },
-        ]}
-      >
+      <View style={styles.tabBar}>
         {visibleTabs.map((tab, index) => {
           const active = isActive(tab.href);
 
@@ -101,16 +95,17 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
               <TouchableOpacity
                 key={tab.name}
                 onPress={() => handlePress(index, tab.href)}
-                style={[
-                  styles.centerButton,
-                  { backgroundColor: colors.primary },
-                ]}
+                style={styles.tabButton}
               >
-                <Ionicons
-                  name={tab.icon as any}
-                  size={32}
-                  color={colors.onPrimary}
-                />
+                <Animated.View
+                  style={{ transform: [{ scale: scaleAnim[index] }] }}
+                >
+                  <Ionicons
+                    name={tab.icon as any}
+                    size={28}
+                    color={active ? colors.primary : colors.text}
+                  />
+                </Animated.View>
               </TouchableOpacity>
             );
           }
@@ -128,8 +123,8 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
                   name={
                     active ? (tab.icon as any) : (`${tab.icon}-outline` as any)
                   }
-                  size={24}
-                  color={active ? colors.primary : colors.textMuted}
+                  size={28}
+                  color={active ? colors.text : colors.textMuted}
                 />
               </Animated.View>
             </TouchableOpacity>
@@ -142,45 +137,23 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
+    position: "sticky",
     bottom: 0,
     left: 0,
     right: 0,
-    alignItems: "center",
+    backgroundColor: "transparent",
   },
   tabBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    marginHorizontal: 20,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 28,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 10,
-    minWidth: width - 40,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    backgroundColor: "transparent",
   },
   tabButton: {
     flex: 1,
     alignItems: "center",
-  },
-
-  centerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     justifyContent: "center",
-    alignItems: "center",
-    marginTop: -30,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 12,
-    borderWidth: 4,
-    borderColor: "#F0F4F8",
   },
 });

@@ -1,56 +1,68 @@
 import useAppColors from "@/theme/useAppColors";
-import React, { useRef } from "react";
+import React, { useRef, useMemo, useCallback } from "react";
 import { StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 
 type Props = {
   length?: number;
   value: string;
   onChange: (val: string) => void;
+  disabled?: boolean;
 };
 
-export const AppOTPInput = ({ length = 6, value, onChange }: Props) => {
+export const AppOTPInput = ({
+  length = 6,
+  value,
+  onChange,
+  disabled,
+}: Props) => {
   const colors = useAppColors();
   const { width } = useWindowDimensions();
 
-  const styles = getStyles(colors, width, length);
+  // Memoize styles — StyleSheet.create won't run every render
+  const styles = useMemo(
+    () => getStyles(colors, width, length),
+    [colors, width, length],
+  );
 
   const inputs = useRef<TextInput[]>([]);
 
-  const otpArray = value
-    .split("")
-    .concat(Array(length).fill(""))
-    .slice(0, length);
+  const otpArray = useMemo(
+    () => value.split("").concat(Array(length).fill("")).slice(0, length),
+    [value, length],
+  );
 
-  const handleChange = (text: string, index: number) => {
-    if (index === 0 && text.length > 1) {
-      const cleaned = text.replace(/\D/g, "").slice(0, length);
-      onChange(cleaned);
-
-      const lastIndex = cleaned.length - 1;
-      if (lastIndex >= 0) {
-        inputs.current[lastIndex]?.focus();
+  // Stable handler — won't cause AppOTPInput children to re-render needlessly
+  const handleChange = useCallback(
+    (text: string, index: number) => {
+      if (index === 0 && text.length > 1) {
+        const cleaned = text.replace(/\D/g, "").slice(0, length);
+        onChange(cleaned);
+        const lastIndex = cleaned.length - 1;
+        if (lastIndex >= 0) inputs.current[lastIndex]?.focus();
+        return;
       }
-      return;
-    }
 
-    if (!/^\d*$/.test(text)) return;
+      if (!/^\d*$/.test(text)) return;
 
-    const newOtp = [...otpArray];
-    newOtp[index] = text;
+      const newOtp = otpArray.slice(); // copy current array
+      newOtp[index] = text;
+      onChange(newOtp.join("").trimEnd());
 
-    const newValue = newOtp.join("").trim();
-    onChange(newValue);
+      if (text && index < length - 1) {
+        inputs.current[index + 1]?.focus();
+      }
+    },
+    [length, onChange, otpArray],
+  );
 
-    if (text && index < length - 1) {
-      inputs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === "Backspace" && !otpArray[index] && index > 0) {
-      inputs.current[index - 1]?.focus();
-    }
-  };
+  const handleKeyPress = useCallback(
+    (e: any, index: number) => {
+      if (e.nativeEvent.key === "Backspace" && !otpArray[index] && index > 0) {
+        inputs.current[index - 1]?.focus();
+      }
+    },
+    [otpArray],
+  );
 
   return (
     <View style={styles.container}>
@@ -65,7 +77,8 @@ export const AppOTPInput = ({ length = 6, value, onChange }: Props) => {
           onChangeText={(text) => handleChange(text, index)}
           onKeyPress={(e) => handleKeyPress(e, index)}
           keyboardType="number-pad"
-          maxLength={1}
+          maxLength={index === 0 ? length : 1} // allow paste on first box
+          editable={!disabled}
         />
       ))}
     </View>

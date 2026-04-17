@@ -9,148 +9,158 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Card } from "react-native-paper";
-import { verifyEmailOtpSchema } from "@/schemas/auth.schema";
+import {
+  verifyEmailOtpSchema,
+  VerifyEmailOtpInput,
+} from "@/schemas/auth.schema";
 import { AppButton, AppContainer, AppOTPInput } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
 import { authClient } from "@/lib/auth-client";
+import { useForm } from "@/hooks/useForm";
 
-const RESEND_COOLDOWN = 60; // seconds
+const RESEND_COOLDOWN = 60;
 
 export default function EmailVerifyScreen() {
   const router = useRouter();
   const colors = useAppColors();
 
+  // Memoize styles to prevent recalculation
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const params = useLocalSearchParams();
-  const email = Array.isArray(params.email) ? params.email[0] : params.email;
+  const email = useMemo(
+    () => (Array.isArray(params.email) ? params.email[0] : params.email),
+    [params.email],
+  );
 
-  useEffect(() => {
-    if (!email) {
-      router.replace("/login");
-    }
-  }, [email, router]);
-
+  // UI State
   const [isPending, setIsPending] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [isResending, setIsResending] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [otpValue, setOtpValue] = useState("");
 
-  const [form, setForm] = useState<{
-    email: string;
-    otp: string;
-  }>({
-    email: email || "",
-    otp: "",
-  });
+  // Form hook
+  const { handleSubmit, errors, setValue, getValues } =
+    useForm<VerifyEmailOtpInput>({
+      schema: verifyEmailOtpSchema,
+      defaultValues: {
+        email: email || "",
+        otp: "",
+      },
+    });
 
-  const [errors, setErrors] = useState<{
-    email?: string;
-    otp?: string;
-    general?: string;
-  }>({});
-
-  // Countdown timer for resend
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [resendTimer]);
-
-  const updateField = useCallback(
-    (field: keyof typeof form) => (text: string) => {
-      setForm((prev) => ({ ...prev, [field]: text }));
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
-      }
-      // Clear general error when user types
-      if (errors.general) {
-        setErrors((prev) => ({ ...prev, general: undefined }));
-      }
+  // Memoized handlers
+  const handleOtpChange = useCallback(
+    (text: string) => {
+      setOtpValue(text);
+      setValue("otp", text);
     },
-    [errors],
+    [setValue],
   );
 
-  const handleResendOtp = async () => {
-    if (resendTimer > 0 || !form.email) return;
+  const onSubmit = useCallback(
+    async (data: VerifyEmailOtpInput) => {
+      setGeneralError(null);
+      setIsPending(true);
+
+      try {
+        const { error } = await authClient.emailOtp.verifyEmail({
+          email: data.email,
+          otp: data.otp,
+        });
+
+        if (error) {
+          setGeneralError(error.message ?? "Email verification failed");
+          return;
+        }
+
+        router.push({
+          pathname: "/success",
+          params: {
+            title: "Email Verified 🎉",
+            message: "Your email has been successfully verified.",
+            buttonText: "Go to Login",
+            redirectTo: "/login",
+          },
+        });
+      } catch {
+        setGeneralError("Verification failed. Please try again.");
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [router],
+  );
+
+  const onInvalid = useCallback(
+    (formErrors: Partial<Record<keyof VerifyEmailOtpInput, string>>) => {
+      console.log("Validation errors:", formErrors);
+    },
+    [],
+  );
+
+  const handleResendOtp = useCallback(async () => {
+    if (resendTimer > 0) return;
+
+    const currentEmail = getValues().email;
+    if (!currentEmail) return;
 
     setIsResending(true);
-    setErrors({});
+    setGeneralError(null);
 
     try {
       const { error } = await authClient.emailOtp.sendVerificationOtp({
-        email: form.email,
+        email: currentEmail,
         type: "email-verification",
       });
 
       if (error) {
-        setErrors({ general: error.message ?? "Failed to resend code" });
+        setGeneralError(error.message ?? "Failed to resend code");
         return;
       }
 
-      // Start cooldown
       setResendTimer(RESEND_COOLDOWN);
-    } catch (err) {
-      setErrors({ general: "Failed to resend code. Please try again." });
+    } catch {
+      setGeneralError("Failed to resend code. Please try again.");
     } finally {
       setIsResending(false);
     }
-  };
+  }, [resendTimer, getValues]);
 
-  const handleVerifyEmail = async () => {
-    setErrors({});
+  // Memoized computed values
+  const canResend = useMemo(
+    () => resendTimer === 0 && !isResending,
+    [resendTimer, isResending],
+  );
 
-    const result = verifyEmailOtpSchema.safeParse(form);
+  const resendLabel = useMemo(() => {
+    if (isResending) return "Sending...";
+    if (resendTimer > 0) return `Resend in ${resendTimer}s`;
+    return "Resend code";
+  }, [isResending, resendTimer]);
 
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
+  const isVerifyDisabled = useMemo(
+    () => isPending || otpValue.length !== 6,
+    [isPending, otpValue.length],
+  );
 
-      result.error.issues.forEach((err) => {
-        const field = err.path[0] as string;
-        fieldErrors[field] = err.message;
-      });
+  // Effects
+  useEffect(() => {
+    if (resendTimer <= 0) return;
 
-      setErrors(fieldErrors);
-      return;
-    }
+    const interval = setInterval(() => {
+      setResendTimer((prev) => prev - 1);
+    }, 1000);
 
-    setIsPending(true);
-    try {
-      const { error } = await authClient.emailOtp.verifyEmail({
-        email: form.email,
-        otp: form.otp,
-      });
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
-      if (error) {
-        setErrors({ general: error.message ?? "Email verification failed" });
-        return;
-      }
-
-      // Success - navigate to next screen
-      router.push({
-        pathname: "/success",
-        params: {
-          title: "Email Verified 🎉",
-          message: "Your email has been successfully verified.",
-          buttonText: "Go to Login",
-          redirectTo: "/login",
-        },
-      });
-    } catch (err) {
-      setErrors({ general: "Verification failed. Please try again." });
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  const canResend = resendTimer === 0 && !isResending;
-  const resendLabel = isResending
-    ? "Sending..."
-    : resendTimer > 0
-      ? `Resend in ${resendTimer}s`
-      : "Resend code";
+  // Memoized submit action
+  const submitAction = useMemo(
+    () => handleSubmit(onSubmit, onInvalid),
+    [handleSubmit, onSubmit, onInvalid],
+  );
 
   return (
     <AppContainer contentStyle={styles.container}>
@@ -160,53 +170,47 @@ export default function EmailVerifyScreen() {
       >
         <Card style={styles.card}>
           <Card.Content style={styles.cardContent}>
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>Verify your email</Text>
               <Text style={styles.subtitle}>
-                We&#39;ve sent a 6-digit verification code to
+                We&apos;ve sent a 6-digit verification code to
               </Text>
               <Text style={styles.emailHighlight}>{email}</Text>
             </View>
 
-            {/* Form */}
             <View style={styles.form}>
-              {/* OTP Input */}
+              {generalError && (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{generalError}</Text>
+                </View>
+              )}
+
               <View style={styles.otpWrapper}>
                 <AppOTPInput
                   length={6}
-                  value={form.otp}
-                  onChange={updateField("otp")}
+                  value={otpValue}
+                  onChange={handleOtpChange}
                   disabled={isPending}
                 />
               </View>
 
-              {/* Error Messages */}
               {errors.otp && (
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{errors.otp}</Text>
                 </View>
               )}
 
-              {errors.general && (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>{errors.general}</Text>
-                </View>
-              )}
-
-              {/* Verify Button */}
               <AppButton
                 title="Verify Email"
-                onPress={handleVerifyEmail}
+                onPress={submitAction}
                 loading={isPending}
-                disabled={isPending || form.otp.length !== 6}
+                disabled={isVerifyDisabled}
                 style={styles.verifyButton}
               />
 
-              {/* Resend Section */}
               <View style={styles.resendContainer}>
                 <Text style={styles.resendHint}>
-                  Didn&#39;t receive the code?
+                  Didn&apos;t receive the code?
                 </Text>
                 <TouchableOpacity
                   onPress={handleResendOtp}
@@ -287,7 +291,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       marginBottom: 20,
     },
     errorContainer: {
-     backgroundColor: colors.error + "15", // 15 = ~8% opacity in hex
+      backgroundColor: colors.error + "15", // 15 = ~8% opacity in hex
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 10,
@@ -298,6 +302,20 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     errorText: {
       color: colors.error,
       fontSize: 13,
+      fontWeight: "500",
+    },
+    errorBanner: {
+      backgroundColor: colors.error + "15",
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.error,
+      marginBottom: 8,
+    },
+    errorBannerText: {
+      color: colors.error,
+      fontSize: 14,
       fontWeight: "500",
     },
     verifyButton: {

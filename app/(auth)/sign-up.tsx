@@ -1,8 +1,8 @@
 import { AppButton, AppInput, AppContainer } from "@/components/ui";
-import { signUpSchema } from "@/schemas/auth.schema";
+import { signUpSchema, SignUpInput } from "@/schemas/auth.schema";
 import useAppColors from "@/theme/useAppColors";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,6 +17,7 @@ import { Card, TextInput, Divider } from "react-native-paper";
 import { signIn, signUp } from "@/lib/auth-client";
 import { Image } from "expo-image";
 import { getCallbackURL } from "@/utils";
+import { useForm } from "@/hooks/useForm";
 
 export default function SignUpScreen() {
   const colors = useAppColors();
@@ -27,124 +28,96 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const [form, setForm] = useState<{
-    name: string;
-    email: string;
-    password: string;
-  }>({
-    name: "",
-    email: "",
-    password: "",
-  });
+  // FORM
+  const { register, handleSubmit, errors, setFocus, getValues, setValue } =
+    useForm<SignUpInput>({
+      schema: signUpSchema,
+      defaultValues: {
+        name: "",
+        email: "",
+        password: "",
+      },
+    });
 
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    password?: string;
-    general?: string;
-  }>({});
+  const nameField = register("name");
+  const emailField = register("email");
+  const passwordField = register("password");
 
-  // Pre-fill email from login screen if passed
+  // Prefill email
   useEffect(() => {
     const emailParam = Array.isArray(params.email)
       ? params.email[0]
       : params.email;
+
     if (emailParam) {
-      setForm((prev) => ({ ...prev, email: emailParam }));
+      setValue("email", emailParam);
     }
-  }, [params.email]);
+  }, [params.email, setValue]);
 
-  const updateField = useCallback(
-    (field: keyof typeof form) => (text: string) => {
-      setForm((prev) => ({ ...prev, [field]: text }));
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
-      }
-      if (errors.general) {
-        setErrors((prev) => ({ ...prev, general: undefined }));
-      }
-    },
-    [errors],
-  );
-
-  const handleSignup = async () => {
-    setErrors({});
-
-    const result = signUpSchema.safeParse(form);
-
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((err) => {
-        const field = err.path[0] as string;
-        fieldErrors[field] = err.message;
-      });
-      setErrors(fieldErrors);
-      return;
-    }
-
+  const onSubmit = async (data: SignUpInput) => {
+    setGeneralError(null);
     setIsPending(true);
 
     try {
       const { error } = await signUp.email({
-        name: form.name,
-        email: form.email,
-        password: form.password,
+        name: data.name,
+        email: data.email,
+        password: data.password,
       });
 
       if (error) {
-        setErrors({
-          general: error.message ?? "Sign up failed. Please try again.",
-        });
+        setGeneralError(error.message ?? "Sign up failed. Please try again.");
         return;
       }
 
       router.replace({
-        pathname: "/verify-email",
-        params: { email: form.email },
+        pathname: "/(auth)/verify-email",
+        params: { email: data.email },
       });
-    } catch (err) {
-      setErrors({
-        general: "An unexpected error occurred. Please try again.",
-      });
+    } catch {
+      setGeneralError("An unexpected error occurred. Please try again.");
     } finally {
       setIsPending(false);
     }
   };
 
+  const onInvalid = (
+    formErrors: Partial<Record<keyof SignUpInput, string>>,
+  ) => {
+    const first = Object.keys(formErrors)[0] as keyof SignUpInput;
+    if (first) setFocus(first);
+  };
+
   const handleLoginWithGoogle = async () => {
     setIsGoogleLoading(true);
-    setErrors({});
+    setGeneralError(null);
 
     try {
       const { error } = await signIn.social({
         provider: "google",
-        callbackURL: getCallbackURL(), // Redirect after successful auth
+        callbackURL: getCallbackURL(),
       });
 
       if (error) {
-        setErrors({
-          general: error.message ?? "Google sign in failed. Please try again.",
-        });
+        setGeneralError(
+          error.message ?? "Google sign in failed. Please try again.",
+        );
       }
-      // Note: better-auth handles the redirect automatically on success
-    } catch (err) {
-      setErrors({
-        general: "An unexpected error occurred. Please try again.",
-      });
+    } catch {
+      setGeneralError("An unexpected error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
     }
   };
 
   const navigateToLogin = () => {
-    router.replace({
-      pathname: "/login",
-      params: { email: form.email },
+    router.navigate({
+      pathname: "/(auth)/login",
+      params: { email: getValues().email },
     });
   };
-
-  const isFormValid = form.name && form.email && form.password;
 
   return (
     <AppContainer contentStyle={styles.container}>
@@ -167,12 +140,11 @@ export default function SignUpScreen() {
                 </Text>
               </View>
 
-              {/* Google Sign Up Button */}
+              {/* Google */}
               <TouchableOpacity
                 style={styles.googleButton}
                 onPress={handleLoginWithGoogle}
                 disabled={isGoogleLoading || isPending}
-                activeOpacity={0.8}
               >
                 {isGoogleLoading ? (
                   <ActivityIndicator size="small" color="#333" />
@@ -201,19 +173,19 @@ export default function SignUpScreen() {
 
               {/* Form */}
               <View style={styles.form}>
-                {/* General Error */}
-                {errors.general && (
+                {generalError && (
                   <View style={styles.errorBanner}>
-                    <Text style={styles.errorBannerText}>{errors.general}</Text>
+                    <Text style={styles.errorBannerText}>{generalError}</Text>
                   </View>
                 )}
 
-                {/* Name Input */}
+                {/* Name */}
                 <View style={styles.inputGroup}>
                   <AppInput
                     label="Full Name"
-                    value={form.name}
-                    onChangeText={updateField("name")}
+                    ref={nameField.ref}
+                    onChangeText={nameField.onChangeText}
+                    onBlur={nameField.onBlur}
                     autoCapitalize="words"
                     autoComplete="name"
                     error={errors.name}
@@ -224,12 +196,13 @@ export default function SignUpScreen() {
                   )}
                 </View>
 
-                {/* Email Input */}
+                {/* Email */}
                 <View style={styles.inputGroup}>
                   <AppInput
                     label="Email Address"
-                    value={form.email}
-                    onChangeText={updateField("email")}
+                    ref={emailField.ref}
+                    onChangeText={emailField.onChangeText}
+                    onBlur={emailField.onBlur}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
@@ -241,21 +214,21 @@ export default function SignUpScreen() {
                   )}
                 </View>
 
-                {/* Password Input */}
+                {/* Password */}
                 <View style={styles.inputGroup}>
                   <AppInput
                     label="Password"
-                    value={form.password}
+                    ref={passwordField.ref}
+                    onChangeText={passwordField.onChangeText}
+                    onBlur={passwordField.onBlur}
                     secureTextEntry={!showPassword}
-                    onChangeText={updateField("password")}
                     autoComplete="new-password"
                     error={errors.password}
                     left={<TextInput.Icon icon="lock-outline" size={20} />}
                     right={
                       <TextInput.Icon
                         icon={showPassword ? "eye-off" : "eye"}
-                        onPress={() => setShowPassword((prev) => !prev)}
-                        forceTextInputFocus={false}
+                        onPress={() => setShowPassword((p) => !p)}
                         size={20}
                       />
                     }
@@ -265,25 +238,22 @@ export default function SignUpScreen() {
                   )}
                 </View>
 
-                {/* Sign Up Button */}
+                {/* Submit */}
                 <AppButton
                   title="Create Account"
-                  onPress={handleSignup}
+                  onPress={handleSubmit(onSubmit, onInvalid)}
                   loading={isPending}
-                  disabled={isPending || !isFormValid || isGoogleLoading}
+                  disabled={isPending || isGoogleLoading}
                   style={styles.signUpButton}
                   contentStyle={styles.signUpButtonContent}
                 />
 
-                {/* Login Link */}
+                {/* Footer */}
                 <View style={styles.footer}>
                   <Text style={styles.footerText}>
-                    Already have an account?{" "}
+                    Already have an account?
                   </Text>
-                  <TouchableOpacity
-                    onPress={navigateToLogin}
-                    activeOpacity={0.7}
-                  >
+                  <TouchableOpacity onPress={navigateToLogin}>
                     <Text style={styles.loginLink}>Sign In</Text>
                   </TouchableOpacity>
                 </View>

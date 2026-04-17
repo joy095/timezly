@@ -6,6 +6,7 @@ type AuthState = {
   session: Session | null;
   user: User | null;
   token: string | null;
+  organization: any | null;
 };
 
 export const authStore$ = observable<AuthState>({
@@ -13,4 +14,5 @@ export const authStore$ = observable<AuthState>({
   session: null,
   user: null,
   token: null,
+  organization: null,
 });

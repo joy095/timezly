@@ -1,7 +1,7 @@
 import { AppButton, AppContainer, AppInput } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,10 +17,11 @@ import {
   Divider,
   TextInput,
 } from "react-native-paper";
-import { loginSchema } from "@/schemas/auth.schema";
 import { signIn } from "@/lib/auth-client";
 import { Image } from "expo-image";
 import { getCallbackURL } from "@/utils";
+import { useForm } from "@/hooks/useForm";
+import { loginSchema, LoginInput } from "@/schemas/auth.schema";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -29,95 +30,68 @@ export default function LoginScreen() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
-
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const [form, setForm] = useState<{
-    email: string;
-    password: string;
-  }>({
-    email: "",
-    password: "",
-  });
+  // ZOD-BASED FORM
+  const { register, handleSubmit, errors, setFocus, getValues } =
+    useForm<LoginInput>({
+      schema: loginSchema,
+      defaultValues: {
+        email: "",
+        password: "",
+      },
+    });
 
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-    general?: string;
-  }>({});
+  const emailField = register("email");
+  const passwordField = register("password");
 
-  const updateField = useCallback(
-    (field: keyof typeof form) => (text: string) => {
-      setForm((prev) => ({ ...prev, [field]: text }));
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
-      }
-      if (errors.general) {
-        setErrors((prev) => ({ ...prev, general: undefined }));
-      }
-    },
-    [errors],
-  );
-
-  const handleLogin = async () => {
-    setErrors({});
-
-    const result = loginSchema.safeParse(form);
-
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((err) => {
-        const field = err.path[0] as string;
-        fieldErrors[field] = err.message;
-      });
-      setErrors(fieldErrors);
-      return;
-    }
-
+  const onSubmit = async (data: LoginInput) => {
+    setGeneralError(null);
     setIsPending(true);
 
     try {
       const { error } = await signIn.email({
-        email: form.email,
-        password: form.password,
+        email: data.email,
+        password: data.password,
         rememberMe: true,
       });
 
       if (error) {
-        setErrors({ general: error.message ?? "Login failed" });
+        setGeneralError(error.message ?? "Login failed");
         return;
       }
 
-      router.replace("/(tabs)/profile");
-    } catch (err) {
-      setErrors({
-        general: "An unexpected error occurred. Please try again.",
-      });
+      router.replace("/(user-tabs)/profile");
+    } catch {
+      setGeneralError("An unexpected error occurred. Please try again.");
     } finally {
       setIsPending(false);
     }
   };
 
+  const onInvalid = (formErrors: Partial<Record<keyof LoginInput, string>>) => {
+    const first = Object.keys(formErrors)[0] as keyof LoginInput;
+    if (first) setFocus(first);
+  };
+
   const handleLoginWithGoogle = async () => {
     setIsGoogleLoading(true);
-    setErrors({});
+    setGeneralError(null);
 
     try {
       const { error } = await signIn.social({
         provider: "google",
-        callbackURL: getCallbackURL(), // Redirect after successful auth
+        callbackURL: getCallbackURL(),
       });
 
       if (error) {
-        setErrors({
-          general: error.message ?? "Google sign in failed. Please try again.",
-        });
+        setGeneralError(
+          error.message ?? "Google sign in failed. Please try again.",
+        );
       }
-      // Note: better-auth handles the redirect automatically on success
-    } catch (err) {
-      setErrors({
-        general: "An unexpected error occurred. Please try again.",
-      });
+    } catch {
+      setGeneralError("An unexpected error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
     }
@@ -125,15 +99,14 @@ export default function LoginScreen() {
 
   const navigateToSignUp = () => {
     router.navigate({
-      pathname: "/sign-up",
-      params: { email: form.email },
+      pathname: "/(auth)/sign-up",
+      params: { email: getValues().email },
     });
   };
 
   const navigateToForgotPassword = () => {
     router.navigate({
       pathname: "/(auth)/forgot-password",
-      params: { email: form.email },
     });
   };
 
@@ -158,7 +131,7 @@ export default function LoginScreen() {
                 </Text>
               </View>
 
-              {/* Google Sign Up Button */}
+              {/* Google */}
               <TouchableOpacity
                 style={styles.googleButton}
                 onPress={handleLoginWithGoogle}
@@ -192,19 +165,19 @@ export default function LoginScreen() {
 
               {/* Form */}
               <View style={styles.form}>
-                {/* General Error */}
-                {errors.general && (
+                {generalError && (
                   <View style={styles.errorBanner}>
-                    <Text style={styles.errorBannerText}>{errors.general}</Text>
+                    <Text style={styles.errorBannerText}>{generalError}</Text>
                   </View>
                 )}
 
-                {/* Email Input */}
+                {/* Email */}
                 <View style={styles.inputGroup}>
                   <AppInput
                     label="Email Address"
-                    value={form.email}
-                    onChangeText={updateField("email")}
+                    ref={emailField.ref}
+                    onChangeText={emailField.onChangeText}
+                    onBlur={emailField.onBlur}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
@@ -216,20 +189,21 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                {/* Password Input */}
+                {/* Password */}
                 <View style={styles.inputGroup}>
                   <AppInput
                     label="Password"
-                    value={form.password}
+                    ref={passwordField.ref}
+                    onChangeText={passwordField.onChangeText}
+                    onBlur={passwordField.onBlur}
                     secureTextEntry={!showPassword}
-                    onChangeText={updateField("password")}
                     autoComplete="password"
                     error={errors.password}
                     left={<TextInput.Icon icon="lock-outline" size={20} />}
                     right={
                       <TextInput.Icon
                         icon={showPassword ? "eye-off" : "eye"}
-                        onPress={() => setShowPassword((prev) => !prev)}
+                        onPress={() => setShowPassword((p) => !p)}
                         size={20}
                       />
                     }
@@ -239,36 +213,32 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                {/* Forgot Password */}
+                {/* Forgot */}
                 <TouchableOpacity
                   onPress={navigateToForgotPassword}
                   style={styles.forgotPasswordContainer}
-                  activeOpacity={0.7}
                 >
                   <Text style={styles.forgotPasswordText}>
                     Forgot password?
                   </Text>
                 </TouchableOpacity>
 
-                {/* Login Button */}
+                {/* Submit */}
                 <AppButton
                   title="Sign In"
-                  onPress={handleLogin}
+                  onPress={handleSubmit(onSubmit, onInvalid)}
                   loading={isPending}
-                  disabled={isPending || !form.email || !form.password}
+                  disabled={isPending}
                   style={styles.loginButton}
                   contentStyle={styles.loginButtonContent}
                 />
 
-                {/* Sign Up Link */}
+                {/* Footer */}
                 <View style={styles.footer}>
                   <Text style={styles.footerText}>
-                    Don&#39;t have an account?{" "}
+                    Don&#39;t have an account?
                   </Text>
-                  <TouchableOpacity
-                    onPress={navigateToSignUp}
-                    activeOpacity={0.7}
-                  >
+                  <TouchableOpacity onPress={navigateToSignUp}>
                     <Text style={styles.signUpLink}>Create one</Text>
                   </TouchableOpacity>
                 </View>

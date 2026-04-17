@@ -15,10 +15,21 @@ export function AuthSync() {
         authStore$.user.set(data?.user ?? null);
       }
 
+      console.log("AuthSync - Session updated:", data?.session);
+
       // Fetch and store JWT token
       authClient.token().then((token) => {
         authStore$.token.set(token ?? null);
       });
+
+      authClient.organization
+        .list()
+        .then((org) => {
+          authStore$.organization.set(org ?? null);
+        })
+        .catch(() => {
+          authStore$.organization.set(null);
+        });
     }
   }, [isPending, data]);
 

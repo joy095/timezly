@@ -1,8 +1,8 @@
 import { AppButton, AppContainer } from "@/components/ui";
 import { router } from "expo-router";
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 
-export default function HomeTab() {
+export default function UserHomeTab() {
   return (
     <AppContainer>
       <Text>HomeTab</Text>

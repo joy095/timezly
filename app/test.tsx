@@ -20,7 +20,6 @@ export default function TestScreen() {
         Just pass your API endpoint and a completion handler.
       */}
       <ImageUploader
-        // uploadUrl="https://api.yourdomain.com/upload"
         uploadUrl={`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/image`}
         onUploadComplete={handleUploadComplete}
         buttonTitle="Upload Profile Picture"

@@ -66,6 +66,36 @@ export interface UploadResult {
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
+// ─── Pure helper (no hooks, no closure deps) ─────────────────────────────────
+function computeImageBounds(iw: number, ih: number, W: number, IMG_H: number) {
+  if (!iw || !ih) return { x: 0, y: 0, w: W, h: IMG_H };
+  const scale = Math.min(W / iw, IMG_H / ih);
+  const rw = iw * scale;
+  const rh = ih * scale;
+  return { x: (W - rw) / 2, y: (IMG_H - rh) / 2, w: rw, h: rh };
+}
+
+function computeCropRect(
+  b: { x: number; y: number; w: number; h: number },
+  ratio: number,
+  pad = 0.04,
+): CropRect {
+  const maxW = b.w * (1 - pad * 2);
+  const maxH = b.h * (1 - pad * 2);
+  let rw = maxW;
+  let rh = rw / ratio;
+  if (rh > maxH) {
+    rh = maxH;
+    rw = rh * ratio;
+  }
+  return {
+    x: b.x + (b.w - rw) / 2,
+    y: b.y + (b.h - rh) / 2,
+    w: rw,
+    h: rh,
+  };
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // uploadImageToCloud
 // ═════════════════════════════════════════════════════════════════════════════
@@ -364,6 +394,7 @@ const CropOverlay: React.FC<{
   cropRect: CropRect;
   onCropChange: (r: CropRect) => void;
   primaryColor: string;
+  imageBounds: { x: number; y: number; w: number; h: number };
 }> = ({
   containerW,
   containerH,
@@ -371,11 +402,14 @@ const CropOverlay: React.FC<{
   cropRect,
   onCropChange,
   primaryColor,
+  imageBounds,
 }) => {
   const { x, y, w, h } = cropRect;
   const MIN = 60;
   const rectRef = useRef(cropRect);
   const modeRef = useRef(cropMode);
+  const imageBoundsRef = useRef(imageBounds);
+  const onCropChangeRef = useRef(onCropChange);
 
   useEffect(() => {
     rectRef.current = cropRect;
@@ -383,65 +417,111 @@ const CropOverlay: React.FC<{
   useEffect(() => {
     modeRef.current = cropMode;
   }, [cropMode]);
+  useEffect(() => {
+    imageBoundsRef.current = imageBounds;
+  }, [imageBounds]);
+  useEffect(() => {
+    onCropChangeRef.current = onCropChange;
+  }, [onCropChange]);
 
-  const moveStart = useRef({ x: 0, y: 0 });
+  // ── Move (drag whole rect) ──────────────────────────────────────────────
+  const moveStart = useRef({ rx: 0, ry: 0, tx: 0, ty: 0 });
   const movePan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant() {
-        moveStart.current = { x: rectRef.current.x, y: rectRef.current.y };
+      onPanResponderGrant(e) {
+        moveStart.current = {
+          rx: rectRef.current.x,
+          ry: rectRef.current.y,
+          tx: e.nativeEvent.pageX,
+          ty: e.nativeEvent.pageY,
+        };
       },
-      onPanResponderMove(_, gs) {
+      onPanResponderMove(e) {
         const r = rectRef.current;
-        onCropChange({
+        const b = imageBoundsRef.current;
+        const dx = e.nativeEvent.pageX - moveStart.current.tx;
+        const dy = e.nativeEvent.pageY - moveStart.current.ty;
+        onCropChangeRef.current({
           ...r,
-          x: clamp(moveStart.current.x + gs.dx, 0, containerW - r.w),
-          y: clamp(moveStart.current.y + gs.dy, 0, containerH - r.h),
+          x: clamp(moveStart.current.rx + dx, b.x, b.x + b.w - r.w),
+          y: clamp(moveStart.current.ry + dy, b.y, b.y + b.h - r.h),
         });
       },
     }),
   ).current;
 
-  const brStart = useRef({ w: 0, h: 0 });
+  // ── Bottom-right resize handle ──────────────────────────────────────────
+  const brStart = useRef({ w: 0, h: 0, tx: 0, ty: 0 });
   const brPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant() {
-        brStart.current = { w: rectRef.current.w, h: rectRef.current.h };
+      onPanResponderGrant(e) {
+        brStart.current = {
+          w: rectRef.current.w,
+          h: rectRef.current.h,
+          tx: e.nativeEvent.pageX,
+          ty: e.nativeEvent.pageY,
+        };
       },
-      onPanResponderMove(_, gs) {
+      onPanResponderMove(e) {
         const r = rectRef.current;
+        const b = imageBoundsRef.current;
         const ratio = ratioOf(modeRef.current);
-        let nw = clamp(brStart.current.w + gs.dx, MIN, containerW - r.x);
+        const dx = e.nativeEvent.pageX - brStart.current.tx;
+        let nw = clamp(brStart.current.w + dx, MIN, b.x + b.w - r.x);
         let nh = nw / ratio;
-        nh = clamp(nh, MIN, containerH - r.y);
-        nw = clamp(nh * ratio, MIN, containerW - r.x);
-        onCropChange({ ...r, w: nw, h: nh });
+        nh = clamp(nh, MIN, b.y + b.h - r.y);
+        nw = clamp(nh * ratio, MIN, b.x + b.w - r.x);
+        onCropChangeRef.current({ ...r, w: nw, h: nh });
       },
     }),
   ).current;
 
-  const tlStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+  // ── Top-left resize handle ──────────────────────────────────────────────
+  const tlStart = useRef({ x: 0, y: 0, w: 0, h: 0, tx: 0, ty: 0 });
   const tlPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant() {
-        tlStart.current = { ...rectRef.current };
+      onPanResponderGrant(e) {
+        tlStart.current = {
+          ...rectRef.current,
+          tx: e.nativeEvent.pageX,
+          ty: e.nativeEvent.pageY,
+        };
       },
-      onPanResponderMove(_, gs) {
+      onPanResponderMove(e) {
         const ratio = ratioOf(modeRef.current);
         const t = tlStart.current;
-        const dx = clamp(gs.dx, -t.x, t.w - MIN);
-        let nw = t.w - dx;
-        let nh = nw / ratio;
-        nh = clamp(nh, MIN, t.y + t.h);
-        nw = nh * ratio;
-        onCropChange({
-          x: Math.max(0, t.x + t.w - nw),
-          y: Math.max(0, t.y + t.h - nh),
+        const b = imageBoundsRef.current;
+        // Use the larger of dx/dy (converted to ratio) so both axes feel natural
+        const dx = e.nativeEvent.pageX - t.tx;
+        const dy = e.nativeEvent.pageY - t.ty;
+        // Drive by whichever axis moved more
+        const driveDx = Math.abs(dx) >= Math.abs(dy * ratio);
+        let nw: number, nh: number;
+        if (driveDx) {
+          nw = clamp(t.w - dx, MIN, t.x + t.w - b.x);
+          nh = nw / ratio;
+        } else {
+          nh = clamp(t.h - dy, MIN, t.y + t.h - b.y);
+          nw = nh * ratio;
+        }
+        // Clamp both to stay inside image
+        nh = clamp(nh, MIN, t.y + t.h - b.y);
+        nw = clamp(nh * ratio, MIN, t.x + t.w - b.x);
+        nh = nw / ratio;
+         // Ensure height doesn't fall below MIN
+        if (nh < MIN) {
+          nh = MIN;
+          nw = nh * ratio;
+        }
+        onCropChangeRef.current({
+          x: Math.max(b.x, t.x + t.w - nw),
+          y: Math.max(b.y, t.y + t.h - nh),
           w: nw,
           h: nh,
         });
@@ -757,6 +837,36 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
 
   const isBusy = uploadPhase !== null;
 
+  // Returns the rendered image rect inside the container (contain letterboxing)
+  const getRenderedImageBounds = useCallback(
+    (iw = imgSize.w, ih = imgSize.h) => computeImageBounds(iw, ih, W, IMG_H),
+    [imgSize, W, IMG_H],
+  );
+
+  const defaultCropRect = useCallback(
+    (iw = imgSize.w, ih = imgSize.h): CropRect => {
+      const pad = 0.04;
+      const b = getRenderedImageBounds(iw, ih);
+      const ratio = ratioOf(cropMode); // use current ratio, not assumed 1:1
+      const maxW = b.w * (1 - pad * 2);
+      const maxH = b.h * (1 - pad * 2);
+      // Fit the largest rect that satisfies the ratio within the padded bounds
+      let rw = maxW;
+      let rh = rw / ratio;
+      if (rh > maxH) {
+        rh = maxH;
+        rw = rh * ratio;
+      }
+      return {
+        x: b.x + (b.w - rw) / 2, // center horizontally
+        y: b.y + (b.h - rh) / 2, // center vertically
+        w: rw,
+        h: rh,
+      };
+    },
+    [getRenderedImageBounds, cropMode], // cropMode dep
+  );
+
   const resetAll = useCallback(() => {
     setUri(null);
     setImgSize({ w: 0, h: 0 });
@@ -773,61 +883,42 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
     onClose?.();
   }, [resetAll, onClose]);
 
-  const defaultCropRect = useCallback((): CropRect => {
-    const pad = 0.04;
-    return {
-      x: W * pad,
-      y: IMG_H * pad,
-      w: W * (1 - pad * 2),
-      h: IMG_H * (1 - pad * 2),
-    };
-  }, [W, IMG_H]);
-
   const [cropRect, setCropRect] = useState<CropRect>(defaultCropRect);
 
   useEffect(() => {
+    if (!imgSize.w || !imgSize.h) return; // ← skip until image is loaded
     const ratio = ratioOf(cropMode);
-    setCropRect((prev) => {
-      let nw = prev.w,
-        nh = nw / ratio;
-      if (nh > IMG_H - prev.y) {
-        nh = IMG_H - prev.y;
-        nw = nh * ratio;
-      }
-      if (nw > W - prev.x) {
-        nw = W - prev.x;
-        nh = nw / ratio;
-      }
-      return { ...prev, w: Math.max(60, nw), h: Math.max(60, nh) };
-    });
-  }, [cropMode, W, IMG_H]);
+    const b = computeImageBounds(imgSize.w, imgSize.h, W, IMG_H);
+    setCropRect(computeCropRect(b, ratio));
+  }, [cropMode, imgSize, W, IMG_H]);
 
   const applyZoomDelta = useCallback(
     (cur: number, next: number) => {
       const factor = cur / next;
       setCropRect((prev) => {
+        const b = computeImageBounds(imgSize.w, imgSize.h, W, IMG_H);
         const ratio = ratioOf(cropMode);
-        const cx = prev.x + prev.w / 2,
-          cy = prev.y + prev.h / 2;
-        let nw = Math.max(60, prev.w * factor),
-          nh = nw / ratio;
-        if (nh > IMG_H) {
-          nh = IMG_H;
+        const cx = prev.x + prev.w / 2;
+        const cy = prev.y + prev.h / 2;
+        let nw = Math.max(60, prev.w * factor);
+        let nh = nw / ratio;
+        if (nh > b.h) {
+          nh = b.h;
           nw = nh * ratio;
         }
-        if (nw > W) {
-          nw = W;
+        if (nw > b.w) {
+          nw = b.w;
           nh = nw / ratio;
         }
         return {
-          x: clamp(cx - nw / 2, 0, W - nw),
-          y: clamp(cy - nh / 2, 0, IMG_H - nh),
+          x: clamp(cx - nw / 2, b.x, b.x + b.w - nw),
+          y: clamp(cy - nh / 2, b.y, b.y + b.h - nh),
           w: nw,
           h: nh,
         };
       });
     },
-    [cropMode, W, IMG_H],
+    [cropMode, imgSize, W, IMG_H], // imgSize added, no getRenderedImageBounds
   );
 
   const handleZoomIn = useCallback(
@@ -882,20 +973,19 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
 
   const resetEdits = useCallback(
     (newUri: string, asset: { width: number; height: number }) => {
-      setUri(null);
-      setImgSize({ w: 0, h: 0 });
       undos.current = [];
       redos.current = [];
-      requestAnimationFrame(() => {
-        setUri(newUri);
-        setImgSize({ w: asset.width, h: asset.height });
-        setHasImage(true);
-        setCropMode("square");
-        setCropRect(defaultCropRect());
-        setZoom(1);
-      });
+      const b = computeImageBounds(asset.width, asset.height, W, IMG_H);
+      const rect = computeCropRect(b, 1); // square = ratio 1
+      // Set all state together — no RAF needed
+      setUri(newUri);
+      setImgSize({ w: asset.width, h: asset.height });
+      setHasImage(true);
+      setCropMode("square");
+      setCropRect(rect);
+      setZoom(1);
     },
-    [defaultCropRect],
+    [W, IMG_H],
   );
 
   const pickFromLibrary = useCallback(async () => {
@@ -932,15 +1022,25 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
 
   const screenCropToImageCrop = useCallback(() => {
     if (!imgSize.w || !imgSize.h) return null;
-    const scale = Math.max(W / imgSize.w, IMG_H / imgSize.h);
+    // "contain" uses the smaller scale factor
+    const scale = Math.min(W / imgSize.w, IMG_H / imgSize.h);
     const offX = (W - imgSize.w * scale) / 2;
     const offY = (IMG_H - imgSize.h * scale) / 2;
-    const originX = Math.max(0, Math.round((cropRect.x - offX) / scale));
-    const originY = Math.max(0, Math.round((cropRect.y - offY) / scale));
-    const width = Math.min(imgSize.w - originX, Math.round(cropRect.w / scale));
-    const height = Math.min(
-      imgSize.h - originY,
+    const originX = clamp(
+      Math.round((cropRect.x - offX) / scale),
+      0,
+      imgSize.w - 1,
+    );
+    const originY = clamp(
+      Math.round((cropRect.y - offY) / scale),
+      0,
+      imgSize.h - 1,
+    );
+    const width = clamp(Math.round(cropRect.w / scale), 1, imgSize.w - originX);
+    const height = clamp(
       Math.round(cropRect.h / scale),
+      1,
+      imgSize.h - originY,
     );
     if (width <= 0 || height <= 0) return null;
     return { originX, originY, width, height };
@@ -1126,9 +1226,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
             resizeMode="contain"
             onLoad={(e) => {
               const src = (e.nativeEvent as any).source ?? e.nativeEvent;
-              if (imgSize.w === 0 && src?.width > 0 && src?.height > 0) {
+              if (src?.width > 0 && src?.height > 0 && imgSize.w === 0) {
                 setImgSize({ w: src.width, h: src.height });
-                setCropRect(defaultCropRect());
+                // cropMode effect will fire and compute the correct rect
               }
             }}
           />
@@ -1141,6 +1241,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
             cropRect={cropRect}
             onCropChange={setCropRect}
             primaryColor={colors.primary}
+            imageBounds={getRenderedImageBounds()}
           />
         )}
         <ZoomControls

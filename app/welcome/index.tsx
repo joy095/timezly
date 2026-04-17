@@ -54,20 +54,13 @@ export default observer(function TabLayout() {
     ]).start();
   }, []);
 
-  // If already logged in, go to app
-  useEffect(() => {
-    if (session) {
-      router.replace("/(tabs)");
-    }
-  }, [session, router]);
-
   const handleLogin = () => {
     router.push("/(auth)/login");
   };
 
   const handleSkip = () => {
     // Go to app as guest (limited features)
-    router.replace("/(tabs)");
+    router.replace("/(user-tabs)");
   };
 
   const handleSignUp = () => {
@@ -218,7 +211,7 @@ export default observer(function TabLayout() {
       </Animated.View>
     </View>
   );
-})
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -323,5 +316,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
- 
 });

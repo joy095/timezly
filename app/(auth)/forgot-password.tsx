@@ -1,5 +1,8 @@
 import { AppButton, AppContainer, AppInput } from "@/components/ui";
-import { forgetPasswordSchema } from "@/schemas/auth.schema";
+import {
+  forgetPasswordSchema,
+  ForgetPasswordInput,
+} from "@/schemas/auth.schema";
 import useAppColors from "@/theme/useAppColors";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +18,7 @@ import {
 import { Card, TextInput } from "react-native-paper";
 import { authClient } from "@/lib/auth-client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useForm } from "@/hooks/useForm";
 
 export default function ForgetPasswordScreen() {
   const colors = useAppColors();
@@ -26,16 +30,23 @@ export default function ForgetPasswordScreen() {
     ? params.email[0]
     : params.email;
 
-  const [form, setForm] = useState({ email: "" });
-  const [errors, setErrors] = useState<{ email?: string; general?: string }>(
-    {}
-  );
   const [isPending, setIsPending] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
+  const { register, handleSubmit, errors, setValue, setFocus } =
+    useForm<ForgetPasswordInput>({
+      schema: forgetPasswordSchema,
+      defaultValues: { email: emailParam ?? "" },
+      mode: "onBlur",
+    });
+
+  const emailField = register("email");
+
+  // Sync email param if it arrives late
   useEffect(() => {
-    if (emailParam) setForm({ email: emailParam });
-  }, [emailParam]);
+    if (emailParam) setValue("email", emailParam);
+  }, [emailParam, setValue]);
 
   // Cooldown timer
   useEffect(() => {
@@ -44,59 +55,44 @@ export default function ForgetPasswordScreen() {
     return () => clearTimeout(timer);
   }, [cooldownSeconds]);
 
-  const updateField = (text: string) => {
-    setForm({ email: text });
-    setErrors((prev) => ({ ...prev, email: undefined, general: undefined }));
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleForgetPassword = async () => {
-    setErrors({});
-    const result = forgetPasswordSchema.safeParse(form);
-
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((err) => {
-        fieldErrors[err.path[0] as string] = err.message;
-      });
-      setErrors(fieldErrors);
-      return;
-    }
-
+  const onSubmit = async (data: ForgetPasswordInput) => {
+    setGeneralError(null);
     setIsPending(true);
 
     try {
-      // ✅ Better-Auth: Request password reset OTP
       const { error } = await authClient.emailOtp.requestPasswordReset({
-        email: form.email,
+        email: data.email,
       });
 
       if (error) {
-        setErrors({ general: error.message || "Failed to send OTP." });
-        setIsPending(false);
+        setGeneralError(error.message || "Failed to send OTP.");
         return;
       }
 
-      // Start cooldown
       setCooldownSeconds(60);
 
-      // Navigate to reset password screen
       router.push({
         pathname: "/(auth)/reset-password",
-        params: { email: form.email },
+        params: { email: data.email },
       });
     } catch (err: any) {
-      setErrors({
-        general: err?.message || "Network error. Please try again.",
-      });
+      setGeneralError(err?.message || "Network error. Please try again.");
     } finally {
       setIsPending(false);
     }
   };
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
+  const onInvalid = (
+    formErrors: Partial<Record<keyof ForgetPasswordInput, string>>,
+  ) => {
+    const first = Object.keys(formErrors)[0] as keyof ForgetPasswordInput;
+    if (first) setFocus(first);
   };
 
   return (
@@ -146,7 +142,7 @@ export default function ForgetPasswordScreen() {
               {/* Form */}
               <View style={styles.form}>
                 {/* General Error */}
-                {errors.general && (
+                {generalError && (
                   <View
                     style={[
                       styles.errorBanner,
@@ -156,8 +152,10 @@ export default function ForgetPasswordScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.errorBannerText, { color: colors.error }]}>
-                      {errors.general}
+                    <Text
+                      style={[styles.errorBannerText, { color: colors.error }]}
+                    >
+                      {generalError}
                     </Text>
                   </View>
                 )}
@@ -166,8 +164,9 @@ export default function ForgetPasswordScreen() {
                 <View style={styles.inputGroup}>
                   <AppInput
                     label="Email Address"
-                    value={form.email}
-                    onChangeText={updateField}
+                    ref={emailField.ref}
+                    onChangeText={emailField.onChangeText}
+                    onBlur={emailField.onBlur}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
@@ -182,10 +181,10 @@ export default function ForgetPasswordScreen() {
                   )}
                 </View>
 
-                {/* Reset Button */}
+                {/* Submit Button */}
                 <AppButton
                   title={isPending ? "Sending..." : "Send Reset Code"}
-                  onPress={handleForgetPassword}
+                  onPress={handleSubmit(onSubmit, onInvalid)}
                   loading={isPending}
                   disabled={isPending || cooldownSeconds > 0}
                   style={[
@@ -234,12 +233,8 @@ export default function ForgetPasswordScreen() {
 
 const getStyles = (colors: ReturnType<typeof useAppColors>) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    keyboardView: {
-      flex: 1,
-    },
+    container: { flex: 1 },
+    keyboardView: { flex: 1 },
     scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
@@ -255,13 +250,8 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       shadowRadius: 12,
       backgroundColor: colors.surface,
     },
-    cardContent: {
-      padding: 28,
-    },
-    header: {
-      alignItems: "center",
-      marginBottom: 28,
-    },
+    cardContent: { padding: 28 },
+    header: { alignItems: "center", marginBottom: 28 },
     iconContainer: {
       width: 72,
       height: 72,
@@ -283,18 +273,10 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       lineHeight: 22,
       paddingHorizontal: 8,
     },
-    highlight: {
-      fontWeight: "700",
-    },
-    form: {
-      gap: 16,
-    },
-    inputGroup: {
-      gap: 6,
-    },
-    input: {
-      backgroundColor: colors.surfaceVariant,
-    },
+    highlight: { fontWeight: "700" },
+    form: { gap: 16 },
+    inputGroup: { gap: 6 },
+    input: { backgroundColor: colors.surfaceVariant },
     fieldError: {
       fontSize: 12,
       marginLeft: 4,
@@ -307,17 +289,9 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       borderLeftWidth: 4,
       marginBottom: 8,
     },
-    errorBannerText: {
-      fontSize: 14,
-      fontWeight: "500",
-    },
-    resetButton: {
-      borderRadius: 14,
-      marginTop: 8,
-    },
-    resetButtonContent: {
-      height: 54,
-    },
+    errorBannerText: { fontSize: 14, fontWeight: "500" },
+    resetButton: { borderRadius: 14, marginTop: 8 },
+    resetButtonContent: { height: 54 },
     resetButtonLabel: {
       fontSize: 16,
       fontWeight: "700",
@@ -336,11 +310,6 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       gap: 6,
       marginTop: 8,
     },
-    footerText: {
-      fontSize: 14,
-    },
-    footerLink: {
-      fontSize: 14,
-      fontWeight: "700",
-    },
+    footerText: { fontSize: 14 },
+    footerLink: { fontSize: 14, fontWeight: "700" },
   });
