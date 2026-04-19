@@ -33,15 +33,12 @@ export default observer(function UserProfileTab() {
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
-  const [avatarKey, setAvatarKey] = useState(0);
-
   const handleUploadComplete = (result: UploadResult) => {
     if (typeof result.cloudUrl !== "string") {
       console.error("cloudUrl is not a string:", result.cloudUrl);
       return;
     }
     authStore$.user.image.set(result.cloudUrl);
-    setAvatarKey((prev) => prev + 1);
   };
 
   const isPending = authStore$.isPending.get();
@@ -156,6 +153,8 @@ export default observer(function UserProfileTab() {
     appMode$.activeMode.set(next);
   };
 
+  console.log("Current mode in UserMenuTab:", currentMode);
+
   const renderIcon = (
     icon: string,
     iconSet: string,
@@ -193,9 +192,7 @@ export default observer(function UserProfileTab() {
             <View style={styles.avatarContainer}>
               {avatarUrl ? (
                 <Image
-                  key={avatarKey}
-                  // source={{ uri: `${avatarUrl}?t=${Date.now()}` }}
-                  source={{ uri: avatarUrl }}
+                  source={avatarUrl}
                   style={styles.avatar}
                   contentFit="cover"
                 />
@@ -263,33 +260,42 @@ export default observer(function UserProfileTab() {
           </Card.Content>
         </Card>
 
-        {/* Online clinic */}
-        <Card style={styles.menuCard} onPress={() => router.push("/")}>
-          <Card.Content
-            style={{ display: "flex", flexDirection: "row", gap: 5 }}
+        {/* create Online clinic */}
+        {!organization && (
+          <Card
+            style={styles.menuCard}
+            onPress={() => router.navigate("/(org)/create-org")}
           >
-            <Image
-              style={{ height: 100, width: 100 }}
-              source={require("@/assets/images/doctor.png")}
-              contentFit="contain"
-            />
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-              }}
+            <Card.Content
+              style={{ display: "flex", flexDirection: "row", gap: 5 }}
             >
-              <Text
-                style={{ color: colors.text, fontSize: 16, fontWeight: "500" }}
+              <Image
+                style={{ height: 100, width: 100 }}
+                source={require("@/assets/images/doctor.png")}
+                contentFit="contain"
+              />
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                }}
               >
-                Start online clinic
-              </Text>
-              <Text style={{ color: colors.text }}>
-                It&#39;s easy to start online clinic and get more clients
-              </Text>
-            </View>
-          </Card.Content>
-        </Card>
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontSize: 16,
+                    fontWeight: "500",
+                  }}
+                >
+                  Start online clinic
+                </Text>
+                <Text style={{ color: colors.text }}>
+                  It&#39;s easy to start online clinic and get more clients
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
 
         {/* Menu Section */}
         <Card style={styles.menuCard}>
@@ -455,7 +461,7 @@ export default observer(function UserProfileTab() {
       {organization && (
         <TouchableOpacity onPress={toggleMode} style={styles.switchWrap}>
           <Octicons name="arrow-switch" size={16} color={colors.textInverse} />
-          <Text style={styles.switchText}>Switch to clinic</Text>
+          <Text style={styles.switchText}>Switch to Clinic</Text>
         </TouchableOpacity>
       )}
     </AppContainer>
@@ -709,11 +715,12 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     },
     switchWrap: {
       position: "absolute",
-      bottom: 30,
+      bottom: 80,
       alignSelf: "center",
 
       flexDirection: "row",
       alignItems: "center",
+      gap: 8,
 
       backgroundColor: colors.primary,
       borderRadius: 20,

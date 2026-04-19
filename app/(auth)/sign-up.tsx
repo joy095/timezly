@@ -18,6 +18,7 @@ import { signIn, signUp } from "@/lib/auth-client";
 import { Image } from "expo-image";
 import { getCallbackURL } from "@/utils";
 import { useForm } from "@/hooks/useForm";
+import ToggleTabs from "@/components/togglTab";
 
 export default function SignUpScreen() {
   const colors = useAppColors();
@@ -130,47 +131,22 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <ToggleTabs
+            tabs={[
+              {
+                label: "Login",
+                route: "login",
+                path: "/(auth)/login",
+              },
+              {
+                label: "Sign Up",
+                route: "sign-up",
+                path: "/(auth)/sign-up",
+              },
+            ]}
+          />
           <Card style={styles.card}>
             <Card.Content style={styles.cardContent}>
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={styles.title}>Create Account</Text>
-                <Text style={styles.subtitle}>
-                  Join us and start your journey today
-                </Text>
-              </View>
-
-              {/* Google */}
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleLoginWithGoogle}
-                disabled={isGoogleLoading || isPending}
-              >
-                {isGoogleLoading ? (
-                  <ActivityIndicator size="small" color="#333" />
-                ) : (
-                  <>
-                    <View style={styles.googleIconContainer}>
-                      <Image
-                        style={styles.image}
-                        source={require("@/assets/images/google.png")}
-                        contentFit="contain"
-                      />
-                    </View>
-                    <Text style={styles.googleButtonText}>
-                      Continue with Google
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <Divider style={styles.divider} />
-                <Text style={styles.dividerText}>or sign up with email</Text>
-                <Divider style={styles.divider} />
-              </View>
-
               {/* Form */}
               <View style={styles.form}>
                 {generalError && (
@@ -247,16 +223,45 @@ export default function SignUpScreen() {
                   style={styles.signUpButton}
                   contentStyle={styles.signUpButtonContent}
                 />
+              </View>
 
-                {/* Footer */}
-                <View style={styles.footer}>
-                  <Text style={styles.footerText}>
-                    Already have an account?
-                  </Text>
-                  <TouchableOpacity onPress={navigateToLogin}>
-                    <Text style={styles.loginLink}>Sign In</Text>
-                  </TouchableOpacity>
-                </View>
+              {/* Divider */}
+              <View style={styles.dividerContainer}>
+                <Divider style={styles.divider} />
+                <Text style={styles.dividerText}>Or</Text>
+                <Divider style={styles.divider} />
+              </View>
+
+              {/* Google */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleLoginWithGoogle}
+                disabled={isGoogleLoading || isPending}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator size="small" color="#333" />
+                ) : (
+                  <>
+                    <View style={styles.googleIconContainer}>
+                      <Image
+                        style={styles.image}
+                        source={require("@/assets/images/google.png")}
+                        contentFit="contain"
+                      />
+                    </View>
+                    <Text style={styles.googleButtonText}>
+                      Continue with Google
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Footer */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Already have an account?</Text>
+                <TouchableOpacity onPress={navigateToLogin}>
+                  <Text style={styles.signUpLink}>Sign In</Text>
+                </TouchableOpacity>
               </View>
             </Card.Content>
           </Card>
@@ -290,22 +295,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     },
     cardContent: {
       padding: 28,
-    },
-    header: {
-      alignItems: "center",
-      marginBottom: 24,
-    },
-    title: {
-      fontSize: 32,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 8,
-      letterSpacing: -0.5,
-    },
-    subtitle: {
-      fontSize: 15,
-      color: colors.textSecondary || colors.text,
-      textAlign: "center",
+      paddingTop: 50,
     },
     image: {
       width: 25,
@@ -338,7 +328,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     dividerContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 20,
+      marginVertical: 20,
       gap: 12,
     },
     divider: {
@@ -388,14 +378,13 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
-      marginTop: 24,
       gap: 4,
     },
     footerText: {
       fontSize: 15,
       color: colors.textSecondary || colors.text,
     },
-    loginLink: {
+    signUpLink: {
       color: colors.primary,
       fontSize: 15,
       fontWeight: "700",

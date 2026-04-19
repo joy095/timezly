@@ -1,11 +1,7 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Invalid email")
-    .nonempty("Email is required"),
+  email: z.email("Invalid email").nonempty("Email is required"),
 
   password: z
     .string()
@@ -23,11 +19,7 @@ export const signUpSchema = z.object({
     .min(3, "Name must be at least 3 characters")
     .nonempty("Name is required"),
 
-  email: z
-    .string()
-    .min(5, "Email is required")
-    .email("Invalid email")
-    .nonempty("Email is required"),
+  email: z.email("Invalid email").nonempty("Email is required"),
 
   password: z
     .string()
@@ -40,21 +32,13 @@ export const signUpSchema = z.object({
 export type SignUpInput = z.infer<typeof signUpSchema>;
 
 export const forgetPasswordSchema = z.object({
-  email: z
-    .string()
-    .min(5, "Email is required")
-    .email("Invalid email")
-    .nonempty("Email is required"),
+  email: z.email("Invalid email").nonempty("Email is required"),
 });
 
 export type ForgetPasswordInput = z.infer<typeof forgetPasswordSchema>;
 
 export const resetPasswordOtpSchema = z.object({
-  email: z
-    .string()
-    .min(5, "Email is required")
-    .email("Invalid email")
-    .nonempty("Email is required"),
+  email: z.email("Invalid email").nonempty("Email is required"),
 
   password: z
     .string()
@@ -70,16 +54,9 @@ export const resetPasswordOtpSchema = z.object({
 export type ResetPasswordOtpInput = z.infer<typeof resetPasswordOtpSchema>;
 
 export const verifyEmailOtpSchema = z.object({
-  email: z
-    .string()
-    .min(5, "Email is required")
-    .email("Invalid email")
-    .nonempty("Email is required"),
+  email: z.email("Invalid email").nonempty("Email is required"),
 
-  otp: z
-    .string()
-    .length(6, "OTP must be 6 digits")
-    .regex(/^\d+$/, "OTP is required"),
+  otp: z.string(),
 });
 
 export type VerifyEmailOtpInput = z.infer<typeof verifyEmailOtpSchema>;

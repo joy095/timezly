@@ -40,7 +40,7 @@ export default function ImageUploader({
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"], // ← fix deprecated
+      mediaTypes: ["images"],
       quality: 1,
       allowsEditing: false,
       exif: false,

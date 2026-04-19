@@ -1,11 +1,12 @@
 // components/FloatingBottomTabs.tsx
-import React from "react";
+import React, { useMemo } from "react";
 import {
   View,
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
+  Image,
+  ImageSourcePropType,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,20 +15,20 @@ import { observer } from "@legendapp/state/react";
 import { authStore$ } from "@/stores/authStore";
 import { CustomColors } from "@/theme/types";
 
-const { width } = Dimensions.get("window");
-
 // Tab configuration type
 export interface TabConfig {
   name: string;
   href: string;
   icon: string;
+  image?: ImageSourcePropType;
   isCenter?: boolean;
   authRequired?: boolean;
+  useImage?: boolean;
 }
 
 interface FloatingBottomTabsProps {
   colors: CustomColors;
-  tabs: TabConfig[]; // Tabs configuration as prop
+  tabs: TabConfig[];
 }
 
 export const FloatingBottomTabs = observer(function FloatingBottomTabs({
@@ -39,9 +40,11 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
   const router = useRouter();
   const session = authStore$.session.get();
 
+  // Memoize styles to prevent unnecessary re-renders
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   const scaleAnim = React.useRef(tabs.map(() => new Animated.Value(1))).current;
 
-  // Keep scaleAnim in sync with tabs length
   React.useEffect(() => {
     if (scaleAnim.length !== tabs.length) {
       scaleAnim.length = 0;
@@ -90,26 +93,6 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
         {visibleTabs.map((tab, index) => {
           const active = isActive(tab.href);
 
-          if (tab.isCenter) {
-            return (
-              <TouchableOpacity
-                key={tab.name}
-                onPress={() => handlePress(index, tab.href)}
-                style={styles.tabButton}
-              >
-                <Animated.View
-                  style={{ transform: [{ scale: scaleAnim[index] }] }}
-                >
-                  <Ionicons
-                    name={tab.icon as any}
-                    size={28}
-                    color={active ? colors.primary : colors.text}
-                  />
-                </Animated.View>
-              </TouchableOpacity>
-            );
-          }
-
           return (
             <TouchableOpacity
               key={tab.name}
@@ -117,15 +100,44 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
               style={styles.tabButton}
             >
               <Animated.View
-                style={{ transform: [{ scale: scaleAnim[index] }] }}
+                style={[
+                  { transform: [{ scale: scaleAnim[index] }] },
+                  tab.useImage && styles.imageContainer,
+                ]}
               >
-                <Ionicons
-                  name={
-                    active ? (tab.icon as any) : (`${tab.icon}-outline` as any)
-                  }
-                  size={28}
-                  color={active ? colors.text : colors.textMuted}
-                />
+                {tab.useImage && tab.image ? (
+                  <Image
+                    source={tab.image}
+                    style={[
+                      styles.tabImage,
+                      active && [
+                        styles.activeTabImage,
+                        { borderColor: colors.primary },
+                      ],
+                    ]}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name={
+                      active && !tab.isCenter
+                        ? (tab.icon as any)
+                        : tab.isCenter
+                          ? (tab.icon as any)
+                          : (`${tab.icon}-outline` as any)
+                    }
+                    size={28}
+                    color={
+                      active
+                        ? tab.isCenter
+                          ? colors.primary
+                          : colors.text
+                        : tab.isCenter
+                          ? colors.text
+                          : colors.textMuted
+                    }
+                  />
+                )}
               </Animated.View>
             </TouchableOpacity>
           );
@@ -135,25 +147,40 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    position: "sticky",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "transparent",
-  },
-  tabBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    backgroundColor: "transparent",
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+const getStyles = (colors: CustomColors) =>
+  StyleSheet.create({
+    container: {
+      position: "absolute", // Changed from "sticky" - not valid in RN
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: "transparent",
+    },
+    tabBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-around",
+      paddingHorizontal: 8,
+      paddingVertical: 10,
+      backgroundColor: "transparent",
+    },
+    tabButton: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    imageContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    tabImage: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      opacity: 0.6,
+    },
+    activeTabImage: {
+      opacity: 1,
+      borderWidth: 2,
+    },
+  });

@@ -102,15 +102,31 @@ function computeCropRect(
 export async function uploadImageToCloud(
   localUri: string,
   uploadUrl: string,
-  filename = "image.jpg",
+  filename?: string,
 ): Promise<string> {
   const formData = new FormData();
+
+  // Detect extension safely
+  const extMatch = localUri.match(/\.(\w+)(\?.*)?$/);
+  const ext = extMatch?.[1]?.toLowerCase() || "jpg";
+
+  const mimeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+  };
+
+  const type = mimeMap[ext] || "image/jpeg";
+  const name = filename || `upload.${ext}`;
+
   formData.append("file", {
     uri: localUri,
-    name: filename,
-    type: "image/jpeg",
+    name,
+    type,
   } as any);
 
+  // Token extraction (cleaned)
   const rawToken = authStore$.token.get();
   const token =
     typeof rawToken === "string"
@@ -118,31 +134,27 @@ export async function uploadImageToCloud(
       : ((rawToken as any)?.data?.token ?? (rawToken as any)?.token ?? null);
 
   if (!token) {
-    console.error("JWT token not found. Cannot upload image.");
     throw new Error("Authentication token missing");
   }
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-  };
-
   try {
+    // Add timeout (VERY important for mobile)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 seconds
+
     const response = await fetch(uploadUrl, {
       method: "POST",
-      headers,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       body: formData,
+      signal: controller.signal,
     });
 
+    clearTimeout(timeout);
+
     if (!response.ok) {
-      const text = await response
-        .text()
-        .catch(() => response.status.toString());
-
-      console.error("Upload failed", {
-        status: response.status,
-        body: text,
-      });
-
+      const text = await response.text().catch(() => "");
       throw new Error(`Upload failed (${response.status}): ${text}`);
     }
 
@@ -156,12 +168,16 @@ export async function uploadImageToCloud(
       (key ? `${process.env.EXPO_PUBLIC_IMAGE_BASE_URL}/${key}` : undefined);
 
     if (!cloudUrl) {
-      throw new Error("Server response did not include a URL");
+      throw new Error("No URL returned from server");
     }
 
     return cloudUrl;
-  } catch (error) {
-    console.error("Network/Fetch Error:", error);
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw new Error("Upload timeout. Please try again.");
+    }
+
+    console.error("Upload error:", error);
     throw error;
   }
 }
@@ -514,7 +530,7 @@ const CropOverlay: React.FC<{
         nh = clamp(nh, MIN, t.y + t.h - b.y);
         nw = clamp(nh * ratio, MIN, t.x + t.w - b.x);
         nh = nw / ratio;
-         // Ensure height doesn't fall below MIN
+        // Ensure height doesn't fall below MIN
         if (nh < MIN) {
           nh = MIN;
           nw = nh * ratio;
@@ -1067,12 +1083,12 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
 
       const cropped = await ImageManipulator.manipulateAsync(uri, actions, {
         compress: DEFAULT_QUALITY / 100,
-        format: ImageManipulator.SaveFormat.JPEG,
+        format: ImageManipulator.SaveFormat.WEBP,
         base64: false,
       });
 
       setUploadPhase("uploading");
-      const filename = `image_${Date.now()}.jpg`;
+      const filename = `image_${Date.now()}.webp`;
       const cloudUrl = await uploadImageToCloud(
         cropped.uri,
         uploadUrl,

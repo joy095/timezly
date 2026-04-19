@@ -1,6 +1,6 @@
 import { AppButton, AppContainer, AppInput } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
-import { useRouter } from "expo-router";
+import { useRouter, useSegments } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   StyleSheet,
@@ -22,11 +22,15 @@ import { Image } from "expo-image";
 import { getCallbackURL } from "@/utils";
 import { useForm } from "@/hooks/useForm";
 import { loginSchema, LoginInput } from "@/schemas/auth.schema";
+import ToggleTabs from "@/components/togglTab";
 
 export default function LoginScreen() {
   const router = useRouter();
   const colors = useAppColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
+
+  const segments = useSegments();
+  const currentRoute = segments[segments.length - 1];
 
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -121,48 +125,22 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <ToggleTabs
+            tabs={[
+              {
+                label: "Login",
+                route: "login",
+                path: "/(auth)/login",
+              },
+              {
+                label: "Sign Up",
+                route: "sign-up",
+                path: "/(auth)/sign-up",
+              },
+            ]}
+          />
           <Card style={styles.card}>
             <Card.Content style={styles.cardContent}>
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={styles.title}>Welcome Back</Text>
-                <Text style={styles.subtitle}>
-                  Sign in to continue to your account
-                </Text>
-              </View>
-
-              {/* Google */}
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleLoginWithGoogle}
-                disabled={isGoogleLoading || isPending}
-                activeOpacity={0.8}
-              >
-                {isGoogleLoading ? (
-                  <ActivityIndicator size="small" color="#333" />
-                ) : (
-                  <>
-                    <View style={styles.googleIconContainer}>
-                      <Image
-                        style={styles.image}
-                        source={require("@/assets/images/google.png")}
-                        contentFit="contain"
-                      />
-                    </View>
-                    <Text style={styles.googleButtonText}>
-                      Continue with Google
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <Divider style={styles.divider} />
-                <Text style={styles.dividerText}>or sign in with email</Text>
-                <Divider style={styles.divider} />
-              </View>
-
               {/* Form */}
               <View style={styles.form}>
                 {generalError && (
@@ -232,8 +210,41 @@ export default function LoginScreen() {
                   style={styles.loginButton}
                   contentStyle={styles.loginButtonContent}
                 />
+              </View>
 
-                {/* Footer */}
+              {/* Divider */}
+              <View style={styles.dividerContainer}>
+                <Divider style={styles.divider} />
+                <Text style={styles.dividerText}>Or</Text>
+                <Divider style={styles.divider} />
+              </View>
+
+              {/* Google */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleLoginWithGoogle}
+                disabled={isGoogleLoading || isPending}
+                activeOpacity={0.8}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator size="small" color="#333" />
+                ) : (
+                  <>
+                    <View style={styles.googleIconContainer}>
+                      <Image
+                        style={styles.image}
+                        source={require("@/assets/images/google.png")}
+                        contentFit="contain"
+                      />
+                    </View>
+                    <Text style={styles.googleButtonText}>
+                      Continue with Google
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Footer */}
                 <View style={styles.footer}>
                   <Text style={styles.footerText}>
                     Don&#39;t have an account?
@@ -242,7 +253,6 @@ export default function LoginScreen() {
                     <Text style={styles.signUpLink}>Create one</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
             </Card.Content>
           </Card>
         </ScrollView>
@@ -275,22 +285,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     },
     cardContent: {
       padding: 28,
-    },
-    header: {
-      alignItems: "center",
-      marginBottom: 32,
-    },
-    title: {
-      fontSize: 32,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 8,
-      letterSpacing: -0.5,
-    },
-    subtitle: {
-      fontSize: 15,
-      color: colors.textSecondary || colors.text,
-      textAlign: "center",
+      paddingTop: 50,
     },
     image: {
       width: 25,
@@ -323,7 +318,7 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     dividerContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 20,
+      marginVertical: 20,
       gap: 12,
     },
     divider: {
@@ -365,7 +360,6 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
     forgotPasswordContainer: {
       alignSelf: "flex-end",
       marginTop: -8,
-      marginBottom: 8,
       paddingVertical: 4,
       paddingHorizontal: 4,
     },
@@ -385,7 +379,6 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
-      marginTop: 24,
       gap: 4,
     },
     footerText: {

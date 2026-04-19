@@ -14,14 +14,21 @@ const MY_TABS: TabConfig[] = [
     href: "/",
     icon: "home",
     isCenter: false,
-    authRequired: false,
+    authRequired: true,
+  },
+  {
+    name: "listings",
+    href: "/listings",
+    icon: "list",
+    isCenter: false,
+    authRequired: true,
   },
   {
     name: "menu",
     href: "/menu",
     icon: "menu",
     isCenter: false,
-    authRequired: false,
+    authRequired: true,
   },
 ];
 
@@ -51,6 +58,7 @@ export default observer(function ClinicTabLayout() {
       <TabList style={styles.hidden}>
         <TabTrigger name="index" href="/" />
         <TabTrigger name="menu" href="/menu" />
+        <TabTrigger name="listings" href="/listings" />
       </TabList>
     </Tabs>
   );

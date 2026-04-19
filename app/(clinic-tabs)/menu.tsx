@@ -11,17 +11,21 @@ export default function ClinicMenuTab() {
 
   const currentMode = appMode$.activeMode.get();
 
+  console.log("Current mode in ClinicMenuTab:", currentMode);
+
   const toggleMode = () => {
-    const next = currentMode === "user" ? "clinic" : "user";
-    appMode$.activeMode.set(next);
+    appMode$.activeMode.set(currentMode === "clinic" ? "user" : "clinic");
   };
+
+  //  "user" ? "clinic" : "user";
+
   return (
     <AppContainer>
       <Text>ClinicMenuTab</Text>
 
       <TouchableOpacity onPress={toggleMode} style={styles.switchWrap}>
         <Octicons name="arrow-switch" size={16} color={colors.textInverse} />
-        <Text style={styles.switchText}>Switch to Client</Text>
+        <Text style={styles.switchText}>Switch to User</Text>
       </TouchableOpacity>
     </AppContainer>
   );
@@ -30,18 +34,21 @@ export default function ClinicMenuTab() {
 const getStyles = (colors: ReturnType<typeof useAppColors>) =>
   StyleSheet.create({
     switchWrap: {
-      position: "fixed", // React Native uses 'absolute', not 'fixed'
-      flexDirection: "row", // Use 'row' or 'column' instead of display: 'flex'
+      position: "absolute",
+      bottom: 80,
+      alignSelf: "center",
+
+      flexDirection: "row",
       alignItems: "center",
-      gap: 5, // gap works in newer RN versions (0.71+)
-      top: "auto",
-      marginTop: "auto",
-      bottom: 0,
-      alignSelf: "center", // Use alignSelf for centering in RN
+      gap: 8,
+
       backgroundColor: colors.primary,
       borderRadius: 20,
-      paddingHorizontal: 12, // Add padding since gap might not work in older versions
-      paddingVertical: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+
+      zIndex: 1000, // ensures it's above everything
+      elevation: 5, // Android shadow
     },
     switchText: {
       color: colors.textInverse,

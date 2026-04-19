@@ -1,13 +1,15 @@
 import { AppContainer } from "@/components/ui";
 import useAppColors from "@/theme/useAppColors";
-import { StyleSheet, Text } from "react-native";
+import { useMemo } from "react";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 
-export default function OrgHomeScreen() {
+export default function ClinicListingsTab() {
   const colors = useAppColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   return (
     <AppContainer>
-      <Text>Organization Home Screen</Text>
+      <Text>ClinicListingsTab</Text>
     </AppContainer>
   );
 }

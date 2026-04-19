@@ -15,8 +15,6 @@ export function AuthSync() {
         authStore$.user.set(data?.user ?? null);
       }
 
-      console.log("AuthSync - Session updated:", data?.session);
-
       // Fetch and store JWT token
       authClient.token().then((token) => {
         authStore$.token.set(token ?? null);

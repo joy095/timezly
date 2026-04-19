@@ -1,13 +1,28 @@
 // (org)/_layout.tsx
-import { Stack, Redirect } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { observer } from "@legendapp/state/react";
 import useAppColors from "@/theme/useAppColors";
-import { View, ActivityIndicator } from "react-native";
 import { authStore$ } from "@/stores/authStore";
+import { ActivityIndicator, View } from "react-native";
 
-export default observer(function AuthLayout() {
-  // observer wrapper
+export default observer(function OrgLayout() {
   const colors = useAppColors();
+
+  const isPending = authStore$.isPending.get();
+  const session = authStore$.session.get();
+
+  if (isPending) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // if don't have a session redirect to user tab
+  // if (!session) {
+  //   return <Redirect href="/(user-tabs)" />;
+  // }
 
   return (
     <Stack
@@ -21,12 +36,12 @@ export default observer(function AuthLayout() {
         contentStyle: {
           backgroundColor: colors.background,
         },
-        headerShown: false,
       }}
     >
+      <Stack.Screen name="index" options={{ animation: "fade" }} />
       <Stack.Screen
-        name="index"
-        options={{ headerShown: false, animation: "fade" }}
+        name="create-org"
+        options={{ animation: "fade", headerTitle: "Create Organization" }}
       />
     </Stack>
   );
