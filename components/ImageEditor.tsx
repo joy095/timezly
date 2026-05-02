@@ -24,7 +24,6 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useAppColors from "@/theme/useAppColors";
-import { authStore$ } from "@/stores/authStore";
 
 const DEFAULT_QUALITY = 80;
 const ZOOM_MIN = 1.0;
@@ -102,6 +101,7 @@ function computeCropRect(
 export async function uploadImageToCloud(
   localUri: string,
   uploadUrl: string,
+  token: string,
   filename?: string,
 ): Promise<string> {
   const formData = new FormData();
@@ -127,15 +127,15 @@ export async function uploadImageToCloud(
   } as any);
 
   // Token extraction (cleaned)
-  const rawToken = authStore$.token.get();
-  const token =
-    typeof rawToken === "string"
-      ? rawToken
-      : ((rawToken as any)?.data?.token ?? (rawToken as any)?.token ?? null);
+  // const rawToken = authStore$.token.get();
+  // const token =
+  //   typeof rawToken === "string"
+  //     ? rawToken
+  //     : ((rawToken as any)?.data?.token ?? (rawToken as any)?.token ?? null);
 
-  if (!token) {
-    throw new Error("Authentication token missing");
-  }
+  // if (!token) {
+  //   throw new Error("Authentication token missing");
+  // }
 
   try {
     // Add timeout (VERY important for mobile)
@@ -826,11 +826,13 @@ export interface ImageEditorProps {
   onUploadSuccess?: (result: UploadResult) => void;
   onUploadError?: (message: string) => void;
   onClose?: () => void;
+  token: string;
 }
 const ImageEditor: React.FC<ImageEditorProps> = ({
   imageUri,
   uploadUrl,
   allowedCropModes,
+  token,
   onUploadSuccess,
   onUploadError,
   onClose,
@@ -1092,6 +1094,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
       const cloudUrl = await uploadImageToCloud(
         cropped.uri,
         uploadUrl,
+        token,
         filename,
       );
 

@@ -69,6 +69,7 @@ export default observer(function UserTabLayout() {
         <TabTrigger name="index" href="/" />
         <TabTrigger name="explore" href="/explore" />
         <TabTrigger name="profile" href="/profile" />
+        <TabTrigger name="edit profile" href="/edit-profile" />
       </TabList>
     </Tabs>
   );

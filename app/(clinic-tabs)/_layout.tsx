@@ -7,6 +7,7 @@ import { FloatingBottomTabs, TabConfig } from "@/components/FloatingBottomTabs";
 import useAppColors from "@/theme/useAppColors";
 import { Redirect } from "expo-router";
 import { appMode$ } from "@/stores/userClinicSwitch";
+import { useMemo } from "react";
 
 const MY_TABS: TabConfig[] = [
   {
@@ -33,9 +34,11 @@ const MY_TABS: TabConfig[] = [
 ];
 
 export default observer(function ClinicTabLayout() {
-  const isPending = authStore$.isPending.get();
-
   const colors = useAppColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
+  const session = authStore$.session.get();
+  const isPending = authStore$.isPending.get();
 
   if (isPending) {
     return (
@@ -43,6 +46,10 @@ export default observer(function ClinicTabLayout() {
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  if (!session) {
+    return <Redirect href="/(user-tabs)" />;
   }
 
   const currentMode = appMode$.activeMode.get();
@@ -64,10 +71,11 @@ export default observer(function ClinicTabLayout() {
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  hidden: { display: "none" },
-});
+const getStyles = (colors: ReturnType<typeof useAppColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: "transparent",
+    },
+    hidden: { display: "none" },
+  });

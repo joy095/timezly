@@ -127,15 +127,7 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
                           : (`${tab.icon}-outline` as any)
                     }
                     size={28}
-                    color={
-                      active
-                        ? tab.isCenter
-                          ? colors.primary
-                          : colors.text
-                        : tab.isCenter
-                          ? colors.text
-                          : colors.textMuted
-                    }
+                    color={active ? colors.primary : colors.textMuted}
                   />
                 )}
               </Animated.View>
@@ -154,7 +146,7 @@ const getStyles = (colors: CustomColors) =>
       bottom: 0,
       left: 0,
       right: 0,
-      backgroundColor: "transparent",
+      backgroundColor: colors.surface,
     },
     tabBar: {
       flexDirection: "row",

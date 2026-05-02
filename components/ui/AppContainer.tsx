@@ -16,6 +16,7 @@ type AppContainerProps = {
   scroll?: boolean;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
+  header?: boolean;
 };
 
 export const AppContainer = ({
@@ -23,6 +24,7 @@ export const AppContainer = ({
   scroll = false,
   style,
   contentStyle,
+  header = false,
 }: AppContainerProps) => {
   const colors = useAppColors();
 
@@ -36,7 +38,13 @@ export const AppContainer = ({
 
   return (
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: colors.background }, style]}
+      edges={header ? ["left", "right", "bottom"] : undefined}
+      style={[
+        styles.safe,
+        { backgroundColor: colors.background },
+        header && styles.noTopPadding,
+        style,
+      ]}
     >
       <KeyboardAvoidingView
         style={styles.safe}
@@ -51,6 +59,9 @@ export const AppContainer = ({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
+  },
+  noTopPadding: {
+    paddingTop: 0,
   },
   content: {
     flex: 1,

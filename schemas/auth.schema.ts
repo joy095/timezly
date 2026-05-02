@@ -1,62 +1,125 @@
-import { z } from "zod";
+import {
+  InferOutput,
+  object,
+  string,
+  boolean,
+  pipe,
+  minLength,
+  maxLength,
+  nonEmpty,
+  regex,
+  email,
+  length,
+  custom,
+  optional,
+} from "valibot";
 
-export const loginSchema = z.object({
-  email: z.email("Invalid email").nonempty("Email is required"),
+// Login
+export const loginSchema = object({
+  email: pipe(string(), nonEmpty("Email is required"), email("Invalid email")),
 
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .nonempty("Password is required"),
+  password: pipe(
+    string(),
+    nonEmpty("Password is required"),
+    minLength(8, "Password must be at least 8 characters"),
+  ),
 
-  rememberMe: z.boolean().default(false),
+  rememberMe: optional(boolean(), true),
 });
 
-export type LoginInput = z.infer<typeof loginSchema>;
+// Sign Up
+export const signUpSchema = object({
+  name: pipe(
+    string(),
+    nonEmpty("Name is required"),
+    minLength(3, "Name must be at least 3 characters"),
+  ),
 
-export const signUpSchema = z.object({
-  name: z
-    .string()
-    .min(3, "Name must be at least 3 characters")
-    .nonempty("Name is required"),
+  email: pipe(string(), nonEmpty("Email is required"), email("Invalid email")),
 
-  email: z.email("Invalid email").nonempty("Email is required"),
+  password: pipe(
+    string(),
+    nonEmpty("Password is required"),
+    minLength(8, "Password must be at least 8 characters"),
+  ),
 
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .nonempty("Password is required"),
-
-  rememberMe: z.boolean().default(false),
+  rememberMe: optional(boolean(), true),
 });
 
-export type SignUpInput = z.infer<typeof signUpSchema>;
-
-export const forgetPasswordSchema = z.object({
-  email: z.email("Invalid email").nonempty("Email is required"),
+// Forget Password
+export const forgetPasswordSchema = object({
+  email: pipe(string(), nonEmpty("Email is required"), email("Invalid email")),
 });
 
-export type ForgetPasswordInput = z.infer<typeof forgetPasswordSchema>;
+// Reset Password with OTP
+export const resetPasswordOtpSchema = object({
+  email: pipe(string(), nonEmpty("Email is required"), email("Invalid email")),
 
-export const resetPasswordOtpSchema = z.object({
-  email: z.email("Invalid email").nonempty("Email is required"),
+  password: pipe(
+    string(),
+    nonEmpty("Password is required"),
+    minLength(8, "Password must be at least 8 characters"),
+  ),
 
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .nonempty("Password is required"),
-
-  otp: z
-    .string()
-    .length(6, "OTP must be 6 digits")
-    .regex(/^\d+$/, "OTP is required"),
+  otp: pipe(
+    string(),
+    length(6, "OTP must be 6 digits"),
+    regex(/^\d+$/, "OTP must contain only digits"),
+  ),
 });
 
-export type ResetPasswordOtpInput = z.infer<typeof resetPasswordOtpSchema>;
+// Verify Email OTP
+export const verifyEmailOtpSchema = object({
+  email: pipe(string(), nonEmpty("Email is required"), email("Invalid email")),
 
-export const verifyEmailOtpSchema = z.object({
-  email: z.email("Invalid email").nonempty("Email is required"),
-
-  otp: z.string(),
+  otp: string(),
 });
 
-export type VerifyEmailOtpInput = z.infer<typeof verifyEmailOtpSchema>;
+// Edit Profile
+export const editProfileSchema = object({
+  name: pipe(
+    string(),
+    minLength(2, "Name must be at least 2 characters"),
+    maxLength(50, "Name must be less than 50 characters"),
+  ),
+});
+
+// Change Email
+export const changeEmailSchema = object({
+  email: pipe(string(), email("Please enter a valid email address")),
+});
+
+// Change Password
+export const changePasswordSchema = pipe(
+  object({
+    currentPassword: pipe(
+      string(),
+      minLength(1, "Current password is required"),
+    ),
+
+    newPassword: pipe(
+      string(),
+      minLength(8, "Password must be at least 8 characters"),
+      maxLength(128, "Password must be less than 128 characters"),
+    ),
+
+    confirmPassword: pipe(
+      string(),
+      minLength(1, "Please confirm your password"),
+    ),
+  }),
+
+  custom(
+    (data) => data.newPassword === data.confirmPassword,
+    "Passwords do not match",
+  ),
+);
+
+export type LoginInput = InferOutput<typeof loginSchema>;
+export type SignUpInput = InferOutput<typeof signUpSchema>;
+export type ForgetPasswordInput = InferOutput<typeof forgetPasswordSchema>;
+export type ResetPasswordOtpInput = InferOutput<typeof resetPasswordOtpSchema>;
+export type VerifyEmailOtpInput = InferOutput<typeof verifyEmailOtpSchema>;
+export type EditProfileInput = InferOutput<typeof editProfileSchema>;
+export type ChangeEmailInput = InferOutput<typeof changeEmailSchema>;
+export type ChangePasswordInput = InferOutput<typeof changePasswordSchema>;

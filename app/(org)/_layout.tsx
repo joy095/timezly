@@ -43,6 +43,10 @@ export default observer(function OrgLayout() {
         name="create-org"
         options={{ animation: "fade", headerTitle: "Create Organization" }}
       />
+      <Stack.Screen
+        name="create-doctor"
+        options={{ animation: "fade", headerTitle: "Create Doctor Account" }}
+      />
     </Stack>
   );
 });

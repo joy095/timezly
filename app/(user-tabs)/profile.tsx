@@ -12,7 +12,7 @@ import {
   Pressable,
   Modal,
 } from "react-native";
-import { ActivityIndicator, Card, Divider } from "react-native-paper";
+import { ActivityIndicator, Card } from "react-native-paper";
 import { signOut } from "@/lib/auth-client";
 import {
   Ionicons,
@@ -115,13 +115,21 @@ export default observer(function UserProfileTab() {
 
   const avatarUrl = getAvatarUrl(user.image);
 
+  const rawToken = authStore$.token.get();
+  const token =
+    typeof rawToken === "string"
+      ? rawToken
+      : ((rawToken as any)?.data?.token ?? (rawToken as any)?.token ?? null);
+
   const menuItems = [
     {
       icon: "person-outline" as const,
       iconSet: "Ionicons" as const,
-      label: "Personal Information",
+      label: "Edit profile",
       color: colors.primary,
-      onPress: () => {},
+      onPress: () => {
+        (router.push("/(user-tabs)/edit-profile"), console.log("clicked"));
+      },
     },
     {
       icon: "shield-outline" as const,
@@ -152,8 +160,6 @@ export default observer(function UserProfileTab() {
     const next = currentMode === "user" ? "clinic" : "user";
     appMode$.activeMode.set(next);
   };
-
-  console.log("Current mode in UserMenuTab:", currentMode);
 
   const renderIcon = (
     icon: string,
@@ -212,50 +218,48 @@ export default observer(function UserProfileTab() {
                   allowedCropModes={["square"]}
                   onUploadComplete={handleUploadComplete}
                   buttonTitle="Upload"
+                  token={token}
                 />
               </View>
             </View>
 
             {/* User Info */}
             <Text style={styles.userName}>{user.name || "User"}</Text>
-            <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-              {user.email}
-            </Text>
+          </Card.Content>
+        </Card>
 
-            {/* Stats */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.text }]}>
-                  Active
-                </Text>
-                <Text
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
-                >
-                  Status
-                </Text>
-              </View>
-              <Divider style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.text }]}>
-                  Member
-                </Text>
-                <Text
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
-                >
-                  Since
-                </Text>
-              </View>
-              <Divider style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.text }]}>
-                  Pro
-                </Text>
-                <Text
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
-                >
-                  Plan
-                </Text>
-              </View>
+        {/* create Doctor account */}
+        <Card
+          style={styles.menuCard}
+          onPress={() => router.navigate("/(org)/create-doctor")}
+        >
+          <Card.Content
+            style={{ display: "flex", flexDirection: "row", gap: 5 }}
+          >
+            <Image
+              style={{ height: 100, width: 100 }}
+              source={require("@/assets/images/doctor.png")}
+              contentFit="contain"
+            />
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                gap: 4,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 16,
+                  fontWeight: "500",
+                }}
+              >
+                Create doctor account
+              </Text>
+              <Text style={{ color: colors.text }} numberOfLines={2}>
+                Doctor account to manage your patients and appointments
+              </Text>
             </View>
           </Card.Content>
         </Card>
@@ -278,6 +282,7 @@ export default observer(function UserProfileTab() {
                 style={{
                   flex: 1,
                   justifyContent: "center",
+                  gap: 4,
                 }}
               >
                 <Text
@@ -604,36 +609,6 @@ const getStyles = (colors: ReturnType<typeof useAppColors>) =>
       fontWeight: "700",
       color: colors.text,
       marginBottom: 4,
-    },
-    userEmail: {
-      fontSize: 14,
-      marginBottom: 20,
-    },
-    statsContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      width: "100%",
-      paddingTop: 20,
-      borderTopWidth: 1,
-      borderTopColor: colors.border || "#e5e7eb",
-    },
-    statItem: {
-      flex: 1,
-      alignItems: "center",
-    },
-    statValue: {
-      fontSize: 16,
-      fontWeight: "700",
-      marginBottom: 2,
-    },
-    statLabel: {
-      fontSize: 12,
-      fontWeight: "500",
-    },
-    statDivider: {
-      width: 1,
-      height: 30,
-      backgroundColor: colors.border || "#e5e7eb",
     },
     menuCard: {
       borderRadius: 16,

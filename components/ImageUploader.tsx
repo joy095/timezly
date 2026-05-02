@@ -18,13 +18,15 @@ interface ImageUploaderProps {
   onUploadComplete: (result: UploadResult) => void;
   buttonTitle?: string;
   allowedCropModes?: ImageEditorProps["allowedCropModes"];
+  token: string;
 }
 
 export default function ImageUploader({
   uploadUrl,
   onUploadComplete,
   buttonTitle = "Upload",
-  allowedCropModes, 
+  allowedCropModes,
+  token,
 }: ImageUploaderProps) {
   const colors = useAppColors();
   const [selectedUri, setSelectedUri] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export default function ImageUploader({
             uploadUrl={uploadUrl}
             allowedCropModes={allowedCropModes}
             onClose={() => setSelectedUri(null)}
+            token={token}
             onUploadSuccess={(result) => {
               setSelectedUri(null);
               onUploadComplete(result);

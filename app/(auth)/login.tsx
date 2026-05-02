@@ -37,7 +37,6 @@ export default function LoginScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // ZOD-BASED FORM
   const { register, handleSubmit, errors, setFocus, getValues } =
     useForm<LoginInput>({
       schema: loginSchema,
