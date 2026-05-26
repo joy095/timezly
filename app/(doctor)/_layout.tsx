@@ -39,9 +39,10 @@ export default observer(function OrgLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ animation: "fade" }} />
+
       <Stack.Screen
-        name="create-org"
-        options={{ animation: "fade", headerTitle: "Create Organization" }}
+        name="create-doctor"
+        options={{ animation: "fade", headerTitle: "Create Doctor Account" }}
       />
     </Stack>
   );

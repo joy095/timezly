@@ -22,6 +22,7 @@ import type {
   CertificateInput,
   ExperienceInput,
 } from "@/schemas/doctor.schema";
+import { BACKEND_URL } from "@/const";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -172,7 +173,7 @@ export default function CreateDoctorScreen() {
     setIsSaving(true);
     try {
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/org/doctor`,
+        `${BACKEND_URL}/api/org/doctor`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

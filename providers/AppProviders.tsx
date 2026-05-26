@@ -10,7 +10,6 @@ import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persi
 import { Provider as PaperProvider } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
-import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { useState } from "react";
 
@@ -19,22 +18,11 @@ import { useAppTheme } from "@/theme/ThemeContext";
 // --- Splash ---
 SplashScreen.preventAutoHideAsync();
 
-// --- Notifications ---
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
-
-async function notify(title: string, body?: string) {
-  await Notifications.scheduleNotificationAsync({
-    content: { title, body },
-    trigger: null,
-  });
+// --- Simple notify fallback ---
+function notify(title: string, body?: string) {
+  if (__DEV__) {
+    console.log(`[${title}] ${body ?? ""}`);
+  }
 }
 
 // --- Online manager ---
@@ -50,18 +38,27 @@ export const queryClient = new QueryClient({
     onError: (err, _vars, _ctx, mutation) => {
       const label =
         (mutation.meta?.errorMessage as string) ?? "Something went wrong";
+
       notify("Error", label);
-      if (__DEV__) console.error("[MutationCache]", err);
+
+      if (__DEV__) {
+        console.error("[MutationCache]", err);
+      }
     },
   }),
+
   queryCache: new QueryCache({
     onError: (err, query) => {
       if (query.state.data !== undefined) {
         notify("Failed to refresh data");
       }
-      if (__DEV__) console.error("[QueryCache]", err);
+
+      if (__DEV__) {
+        console.error("[QueryCache]", err);
+      }
     },
   }),
+
   defaultOptions: {
     queries: {
       gcTime: 1000 * 60 * 60 * 24,
@@ -71,6 +68,7 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     },
+
     mutations: {
       retry: false,
     },
@@ -95,6 +93,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         persister,
         buster: "v1",
         maxAge: 1000 * 60 * 60 * 24,
+
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => query.state.status === "success",
         },

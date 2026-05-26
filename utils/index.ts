@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
+import { IMAGE_URL } from "@/const";
 
 export const getCallbackURL = () => {
   return Platform.OS === "web"
@@ -16,5 +17,5 @@ export const getAvatarUrl = (image?: string | null) => {
   }
 
   // Otherwise it's your stored path → prepend your base URL
-  return `${process.env.EXPO_PUBLIC_IMAGE_BASE_URL}/${image}`;
+  return `${IMAGE_URL}/${image}`;
 };

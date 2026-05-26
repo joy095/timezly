@@ -1,6 +1,7 @@
 import { UploadResult } from "@/components/ImageEditor";
 import ImageUploader from "@/components/ImageUploader";
 import { AppContainer } from "@/components/ui";
+import { BACKEND_URL, IMAGE_URL } from "@/const";
 import { authStore$ } from "@/stores/authStore";
 import { appMode$ } from "@/stores/userClinicSwitch";
 import useAppColors from "@/theme/useAppColors";
@@ -58,7 +59,7 @@ export default observer(function ClinicMenuTab() {
   const avatarUrl = orgLogo
     ? orgLogo.startsWith("https")
       ? orgLogo
-      : `${process.env.EXPO_PUBLIC_IMAGE_BASE_URL}/${orgLogo}`
+      : `${IMAGE_URL}/${orgLogo}`
     : null;
 
   return (
@@ -85,7 +86,7 @@ export default observer(function ClinicMenuTab() {
             )}
             <View style={styles.cameraBadge}>
               <ImageUploader
-                uploadUrl={`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/org/image`}
+                uploadUrl={`${BACKEND_URL}/api/org/image`}
                 allowedCropModes={["square"]}
                 onUploadComplete={handleUploadComplete}
                 buttonTitle="Upload"

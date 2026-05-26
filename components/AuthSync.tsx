@@ -1,8 +1,7 @@
-// components/AuthSync.tsx
 import { useEffect } from "react";
 import { useSession, authClient } from "@/lib/auth-client";
 import { authStore$ } from "@/stores/authStore";
-import type { OrgListResponse } from "@/types/auth";
+import type { Doctor, OrgListResponse } from "@/types/auth";
 
 export function AuthSync() {
   const { data, isPending } = useSession();
@@ -12,7 +11,9 @@ export function AuthSync() {
 
     authStore$.isPending.set(isPending);
 
-    if (!isPending) {
+    async function sync() {
+      if (isPending) return;
+
       const currentUserId = authStore$.user.peek()?.id;
       const newUserId = data?.user?.id;
 
@@ -23,30 +24,61 @@ export function AuthSync() {
       }
 
       // Token fetch
-      authClient.token().then((token) => {
-        if (mounted) {
-          authStore$.token.set(token ?? null);
+      const token = await authClient.token();
+
+      if (mounted) {
+        authStore$.token.set(token ?? null);
+      }
+
+      try {
+        // Organizations
+        const res: OrgListResponse = await authClient.organization.list();
+
+        if (!mounted) return;
+
+        const orgs = res?.data ?? [];
+        const activeOrg = orgs[0] ?? null;
+
+        authStore$.organizations.set(orgs);
+        authStore$.organization.set(activeOrg);
+
+        // Doctor fetch
+        if (activeOrg?.slug) {
+          const response = await fetch(
+            `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/doctor/${activeOrg.slug}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+
+          if (response.ok) {
+            const doctor: Doctor = await response.json();
+
+            if (mounted) {
+              authStore$.doctor.set(doctor);
+            }
+          } else {
+            authStore$.doctor.set(null);
+          }
+        } else {
+          authStore$.doctor.set(null);
         }
-      });
+      } catch (error) {
+        if (!mounted) return;
 
-      // Organization fetch + normalization
-      authClient.organization
-        .list()
-        .then((res: OrgListResponse) => {
-          if (!mounted) return;
+        authStore$.organizations.set([]);
+        authStore$.organization.set(null);
+        authStore$.doctor.set(null);
 
-          const orgs = res?.data ?? [];
-
-          authStore$.organizations.set(orgs);
-          authStore$.organization.set(orgs[0] ?? null); // active org
-        })
-        .catch(() => {
-          if (!mounted) return;
-
-          authStore$.organizations.set([]);
-          authStore$.organization.set(null);
-        });
+        if (__DEV__) {
+          console.error("[AuthSync]", error);
+        }
+      }
     }
+
+    sync();
 
     return () => {
       mounted = false;

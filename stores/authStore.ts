@@ -8,4 +8,5 @@ export const authStore$ = observable<AuthState>({
   token: null,
   organization: null,
   organizations: [],
+  doctor: null,
 });

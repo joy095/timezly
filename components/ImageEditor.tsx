@@ -24,6 +24,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useAppColors from "@/theme/useAppColors";
+import { IMAGE_URL } from "@/const";
 
 const DEFAULT_QUALITY = 80;
 const ZOOM_MIN = 1.0;
@@ -165,7 +166,7 @@ export async function uploadImageToCloud(
       json?.url ??
       json?.data?.url ??
       json?.secure_url ??
-      (key ? `${process.env.EXPO_PUBLIC_IMAGE_BASE_URL}/${key}` : undefined);
+      (key ? `${IMAGE_URL}/${key}` : undefined);
 
     if (!cloudUrl) {
       throw new Error("No URL returned from server");

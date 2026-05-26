@@ -3,6 +3,7 @@ import { View, StyleSheet, Image, Text } from "react-native";
 import ImageUploader from "@/components/ImageUploader";
 import { UploadResult } from "@/components/ImageEditor";
 import useAppColors from "@/theme/useAppColors";
+import { BACKEND_URL } from "@/const";
 
 export default function TestScreen() {
   const colors = useAppColors();
@@ -20,7 +21,7 @@ export default function TestScreen() {
         Just pass your API endpoint and a completion handler.
       */}
       <ImageUploader
-        uploadUrl={`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/image`}
+        uploadUrl={`${BACKEND_URL}/api/user/image`}
         onUploadComplete={handleUploadComplete}
         buttonTitle="Upload Profile Picture"
       />

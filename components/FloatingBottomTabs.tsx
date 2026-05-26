@@ -78,6 +78,39 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
     return true;
   });
 
+  // Helper to render icon (image or Ionicons fallback)
+  const renderIcon = (tab: TabConfig, active: boolean) => {
+    const iconName =
+      active && !tab.isCenter
+        ? tab.icon
+        : tab.isCenter
+          ? tab.icon
+          : `${tab.icon}-outline`;
+
+    if (tab.useImage && tab.image) {
+      return (
+        <Image
+          source={tab.image}
+          style={[
+            styles.tabImage,
+            active && [styles.activeTabImage, { borderColor: colors.primary }],
+          ]}
+          resizeMode="cover"
+        />
+      );
+    }
+
+    // Fallback to Ionicons when useImage is true but no image is set,
+    // or when useImage is false/undefined
+    return (
+      <Ionicons
+        name={iconName as any}
+        size={28}
+        color={active ? colors.primary : colors.textMuted}
+      />
+    );
+  };
+
   return (
     <View
       style={[
@@ -102,34 +135,10 @@ export const FloatingBottomTabs = observer(function FloatingBottomTabs({
               <Animated.View
                 style={[
                   { transform: [{ scale: scaleAnim[index] }] },
-                  tab.useImage && styles.imageContainer,
+                  tab.useImage && tab.image ? styles.imageContainer : undefined,
                 ]}
               >
-                {tab.useImage && tab.image ? (
-                  <Image
-                    source={tab.image}
-                    style={[
-                      styles.tabImage,
-                      active && [
-                        styles.activeTabImage,
-                        { borderColor: colors.primary },
-                      ],
-                    ]}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Ionicons
-                    name={
-                      active && !tab.isCenter
-                        ? (tab.icon as any)
-                        : tab.isCenter
-                          ? (tab.icon as any)
-                          : (`${tab.icon}-outline` as any)
-                    }
-                    size={28}
-                    color={active ? colors.primary : colors.textMuted}
-                  />
-                )}
+                {renderIcon(tab, active)}
               </Animated.View>
             </TouchableOpacity>
           );

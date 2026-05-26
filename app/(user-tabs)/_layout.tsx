@@ -24,10 +24,9 @@ export default observer(function UserTabLayout() {
   const userImage = authStore$.user.image.get();
   const avatarUrl = getAvatarUrl(userImage);
 
-  // Fix: Convert string URL to ImageSourcePropType format
-  const profileImage = avatarUrl
-    ? { uri: avatarUrl } // Remote URL must be wrapped in { uri: ... }
-    : require("@/assets/images/profile.png");
+  console.log("User", authStore$.user.get());
+
+  const profileImage = avatarUrl ? { uri: avatarUrl } : undefined;
 
   const MY_TABS: TabConfig[] = [
     {

@@ -9,6 +9,18 @@ export type Organization = {
   createdAt: string;
 };
 
+export type Doctor = {
+  id: string;
+  user_id: string;
+
+  description: string | null;
+  specialized: string | null;
+
+  slot_duration_mins: number | null;
+
+  slug: string;
+};
+
 // API response shape
 export type OrgListResponse = {
   data: Organization[];
@@ -26,4 +38,6 @@ export type AuthState = {
 
   // optional: keep all orgs (future-proof)
   organizations: Organization[];
+
+  doctor: Doctor | null;
 };
